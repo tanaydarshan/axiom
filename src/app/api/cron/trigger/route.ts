@@ -5,8 +5,9 @@ import { getCognitiveAge, getCognitiveStage, checkSpecialTrigger } from '@/lib/s
 const AGENT_ID = 'axiom-001';
 
 function getBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_BASE_URL) return process.env.NEXT_PUBLIC_BASE_URL;
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  return 'http://localhost:3000';
 }
 
 async function callInternal(path: string, body: Record<string, unknown>): Promise<unknown> {

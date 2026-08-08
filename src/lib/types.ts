@@ -1,5 +1,7 @@
 export type CognitiveStage = 'infancy' | 'childhood' | 'adolescence' | 'early_maturity';
 
+export type DebateLevel = 'none' | 'one_liner' | 'full';
+
 export type PostType =
   | 'birth_certificate'
   | 'observation'

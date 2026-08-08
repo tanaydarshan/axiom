@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     const body: CognitionInput = await request.json();
     const { discoveryResults, cognitiveStage } = body;
 
-    const systemPrompt = getCognitionPrompt(cognitiveStage as CognitiveStage);
+    const systemPrompt = getCognitionPrompt(cognitiveStage as CognitiveStage, 'full');
     const compressedState = await compressMindState(AGENT_ID);
     const previousTopics = await getPreviousTopics(AGENT_ID);
 
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     const response = await callLLM({
       model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
-      maxTokens: 4096,
+      maxTokens: 8192,
       systemPrompt,
       userMessage,
     });

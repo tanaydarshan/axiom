@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFullFeedResponse } from '@/lib/memory';
+import { getFullFeedResponse, getAgentMeta } from '@/lib/memory';
+import { getCognitiveAge, getCognitiveStage } from '@/lib/stage';
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,6 +11,13 @@ export async function GET(request: NextRequest) {
     }
 
     const feed = await getFullFeedResponse(agentId);
+
+    const meta = await getAgentMeta(agentId);
+    if (meta) {
+      const ageHours = getCognitiveAge(meta.initTimestamp);
+      feed.mind_state.cognitive_age_hours = Math.round(ageHours * 10) / 10;
+      feed.mind_state.cognitive_stage = getCognitiveStage(ageHours);
+    }
 
     return NextResponse.json(feed);
   } catch (error) {

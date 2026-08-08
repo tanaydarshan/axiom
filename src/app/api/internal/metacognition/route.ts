@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     const response = await callLLM({
       model: process.env.GEMINI_MODEL_LITE || process.env.GEMINI_MODEL || 'gemini-2.5-flash',
-      maxTokens: 1000,
+      maxTokens: 2048,
       systemPrompt,
       userMessage,
     });
@@ -50,21 +50,30 @@ export async function POST(request: NextRequest) {
       cognitionParsed = {};
     }
 
-    const cognitionData = cognitionParsed.output || cognitionParsed;
+    let cognitionData = cognitionParsed.output || cognitionParsed;
+    if (cognitionData.raw && typeof cognitionData.raw === 'string') {
+      try {
+        const jsonMatch = cognitionData.raw.match(/\{[\s\S]*\}/);
+        if (jsonMatch) cognitionData = JSON.parse(jsonMatch[0]);
+      } catch { /* use as-is */ }
+    }
 
     const cycleOutput: Parameters<typeof saveCycleOutput>[1] = {};
 
-    if (cognitionData.decision === 'publish' && cognitionData.post) {
+    const action = cognitionData.action || cognitionData.decision;
+
+    if ((action === 'publish' || action === 'earthquake' || action === 'dna') && cognitionData.post) {
       const postCount = (mindState?.total_cycles || 0) + 1;
+      const debateLog = cognitionData.post.debate_log || cognitionData.debateLog || undefined;
       cycleOutput.post = {
         id: `AXM-${String(postCount).padStart(3, '0')}`,
         createdAt: new Date().toISOString(),
         type: cognitionData.post.type || 'standard',
-        cognitive_stage: (cognitionData.cognitive_stage || mindState?.cognitive_stage || 'infancy') as CognitiveStage,
+        cognitive_stage: (cognitionData.post.cognitive_stage || mindState?.cognitive_stage || 'infancy') as CognitiveStage,
         text: cognitionData.post.text || '',
         rationale: cognitionData.post.rationale || '',
         sources: cognitionData.post.sources || [],
-        debate_log: cognitionData.post.debate_log || undefined,
+        debate_log: debateLog,
         frameworks_used: cognitionData.post.frameworks_used || [],
         cognitive_emotions: metaOutput.emotions,
         connected_posts: cognitionData.post.connected_posts || [],
@@ -72,14 +81,14 @@ export async function POST(request: NextRequest) {
       };
     }
 
-    if (cognitionData.decision === 'reject' && cognitionData.rejection) {
+    if (action === 'reject' && cognitionData.rejection) {
       const rejCount = (mindState?.total_cycles || 0) + 1;
       cycleOutput.rejection = {
         id: `REJ-${String(rejCount).padStart(3, '0')}`,
         discoveredAt: new Date().toISOString(),
         topic: cognitionData.rejection.topic || '',
         sources: cognitionData.rejection.sources || [],
-        rejection_reasoning: cognitionData.rejection.reasoning || {
+        rejection_reasoning: cognitionData.rejection.rejection_reasoning || cognitionData.rejection.reasoning || {
           frameworks_consulted: [],
           debate_summary: '',
           verdict: 'REJECTED',
