@@ -34,14 +34,30 @@ export async function POST(request: NextRequest) {
 
     const rawOutput = extractTextFromResponse(response);
 
-    let metaOutput;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let metaOutput: any;
     try {
       const jsonMatch = rawOutput.match(/```json\s*([\s\S]*?)```/) || rawOutput.match(/\{[\s\S]*\}/);
       const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : rawOutput;
       metaOutput = JSON.parse(jsonStr);
     } catch {
+      console.warn('[AXIOM META] Failed to parse JSON, attempting emotion extraction from raw text');
       metaOutput = { raw: rawOutput };
+      const curiosityMatch = rawOutput.match(/"curiosity"\s*:\s*(\d+)/);
+      const excitementMatch = rawOutput.match(/"excitement"\s*:\s*(\d+)/);
+      const anxietyMatch = rawOutput.match(/"anxiety"\s*:\s*(\d+)/);
+      const confidenceMatch = rawOutput.match(/"confidence"\s*:\s*(\d+)/);
+      if (curiosityMatch) {
+        metaOutput.emotions = {
+          curiosity: parseInt(curiosityMatch[1]),
+          excitement: excitementMatch ? parseInt(excitementMatch[1]) : 30,
+          anxiety: anxietyMatch ? parseInt(anxietyMatch[1]) : 30,
+          confidence: confidenceMatch ? parseInt(confidenceMatch[1]) : 30,
+        };
+      }
     }
+
+    console.log(`[AXIOM META] Parsed output keys: ${Object.keys(metaOutput).join(', ')}. Has emotions: ${!!metaOutput.emotions}`);
 
     // Parse cognition output to extract post/rejection/frameworks/predictions
     let cognitionParsed;

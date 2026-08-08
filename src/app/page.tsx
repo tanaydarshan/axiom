@@ -432,6 +432,354 @@ function PostCard({ post, highlight }: { post: Post; highlight?: boolean }) {
 // MAIN PAGE
 // ============================================================
 
+// ============================================================
+// LIVE PIPELINE TRIGGER
+// ============================================================
+
+interface TriggerResult {
+  cycle: number;
+  cognitive_stage: string;
+  age_hours: number;
+  discovery?: { status: string; findings_length: number; sources_count: number; sources?: string[] };
+  cognition?: { status: string; decision: string; post_type?: string; post_preview?: string; rejection_topic?: string; debate?: { advocate: string; skeptic: string; resolution: string }; new_frameworks: number; new_predictions: number };
+  metacognition?: { status: string; emotions?: CognitiveEmotions; blind_spots?: string[]; cognitive_health?: string; curiosity_focus?: string[] };
+}
+
+type PipelineStep = 'idle' | 'discovering' | 'cognizing' | 'reflecting' | 'complete' | 'error';
+
+function LivePipelineMonitor({ onCycleComplete }: { onCycleComplete: () => void }) {
+  const [step, setStep] = useState<PipelineStep>('idle');
+  const [result, setResult] = useState<TriggerResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const runCycle = async () => {
+    setStep('discovering');
+    setResult(null);
+    setError(null);
+    setElapsed(0);
+
+    timerRef.current = setInterval(() => setElapsed(e => e + 100), 100);
+
+    try {
+      // Simulate step progression based on typical pipeline timings
+      const t1 = setTimeout(() => setStep(s => s === 'discovering' ? 'cognizing' : s), 8000);
+      const t2 = setTimeout(() => setStep(s => s === 'cognizing' ? 'reflecting' : s), 22000);
+
+      const res = await fetch('/api/agent/trigger', { method: 'POST' });
+      clearTimeout(t1);
+      clearTimeout(t2);
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      const data: TriggerResult = await res.json();
+      setResult(data);
+      setStep('complete');
+      if (timerRef.current) clearInterval(timerRef.current);
+      onCycleComplete();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed');
+      setStep('error');
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+  };
+
+  useEffect(() => {
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, []);
+
+  const formatElapsed = (ms: number) => {
+    const s = Math.floor(ms / 1000);
+    return `${s}s`;
+  };
+
+  const steps: { key: PipelineStep; label: string; agent: string; color: string; icon: string }[] = [
+    { key: 'discovering', label: 'DISCOVERY AGENT', agent: 'Scanning Google News RSS for AI stories...', color: '#3b82f6', icon: '01' },
+    { key: 'cognizing', label: 'COGNITION AGENT', agent: 'Analyzing, debating, deciding...', color: '#a855f7', icon: '02' },
+    { key: 'reflecting', label: 'META-COGNITION AGENT', agent: 'Scoring emotions, detecting blind spots...', color: '#ec4899', icon: '03' },
+  ];
+
+  const stepOrder: PipelineStep[] = ['discovering', 'cognizing', 'reflecting', 'complete'];
+  const currentIdx = stepOrder.indexOf(step);
+
+  return (
+    <section style={{ marginBottom: 32 }}>
+      <SectionHeader>LIVE PIPELINE &mdash; WATCH AXIOM THINK IN REAL TIME</SectionHeader>
+      <Card>
+        {step === 'idle' && (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <div style={{ fontSize: 13, color: '#9898b0', marginBottom: 16, lineHeight: 1.6 }}>
+              Trigger a full autonomous cycle. AXIOM will scan real news, analyze it with its existing frameworks,
+              debate whether to publish, and update its emotional state &mdash; all in ~30 seconds.
+            </div>
+            <button
+              onClick={runCycle}
+              style={{
+                background: 'linear-gradient(135deg, #00d4ff, #a855f7)', border: 'none', borderRadius: 8,
+                padding: '12px 32px', fontSize: 14, fontWeight: 700, color: '#fff', cursor: 'pointer',
+                fontFamily: 'var(--font-mono)', letterSpacing: 1, transition: 'transform 0.15s, box-shadow 0.15s',
+                boxShadow: '0 0 20px #00d4ff30',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.03)'; e.currentTarget.style.boxShadow = '0 0 30px #00d4ff50'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 0 20px #00d4ff30'; }}
+            >
+              RUN CYCLE NOW
+            </button>
+          </div>
+        )}
+
+        {step !== 'idle' && (
+          <div>
+            {/* Pipeline steps */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              {steps.map((s, i) => {
+                const sIdx = stepOrder.indexOf(s.key);
+                const isActive = step === s.key;
+                const isDone = currentIdx > sIdx;
+                const isPending = currentIdx < sIdx;
+                return (
+                  <div key={s.key} style={{ display: 'flex', alignItems: 'center', flex: i < 2 ? 1 : 0 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 100 }}>
+                      <div style={{
+                        width: 40, height: 40, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                        background: isDone ? s.color : isActive ? `${s.color}30` : '#1a1a25',
+                        color: isDone ? '#fff' : isActive ? s.color : '#505068',
+                        border: `2px solid ${isDone || isActive ? s.color : '#2a2a3a'}`,
+                        boxShadow: isActive ? `0 0 15px ${s.color}40` : 'none',
+                        transition: 'all 0.4s ease',
+                      }}>
+                        {isDone ? '✓' : s.icon}
+                      </div>
+                      <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: isDone || isActive ? s.color : '#505068', marginTop: 6, fontFamily: 'var(--font-mono)', textAlign: 'center' }}>
+                        {s.label}
+                      </div>
+                      {isActive && (
+                        <div style={{ fontSize: 10, color: '#9898b0', marginTop: 4, textAlign: 'center' }}>
+                          <style>{`@keyframes dotPulse { 0%,80%,100% { opacity:0; } 40% { opacity:1; } }
+                          .dot1 { animation: dotPulse 1.4s infinite; } .dot2 { animation: dotPulse 1.4s infinite 0.2s; } .dot3 { animation: dotPulse 1.4s infinite 0.4s; }`}</style>
+                          {s.agent.replace('...', '')}<span className="dot1">.</span><span className="dot2">.</span><span className="dot3">.</span>
+                        </div>
+                      )}
+                      {isDone && result && s.key === 'discovering' && result.discovery && (
+                        <div style={{ fontSize: 10, color: '#22c55e', marginTop: 4 }}>{result.discovery.sources_count} sources found</div>
+                      )}
+                      {isDone && result && s.key === 'cognizing' && result.cognition && (
+                        <div style={{ fontSize: 10, color: result.cognition.decision === 'publish' ? '#22c55e' : '#f59e0b', marginTop: 4 }}>
+                          Decision: {result.cognition.decision.toUpperCase()}
+                        </div>
+                      )}
+                      {isDone && result && s.key === 'reflecting' && result.metacognition?.emotions && (
+                        <div style={{ fontSize: 10, color: '#ec4899', marginTop: 4 }}>
+                          Health: {result.metacognition.cognitive_health || 'scored'}
+                        </div>
+                      )}
+                    </div>
+                    {i < 2 && (
+                      <div style={{
+                        flex: 1, height: 2, margin: '0 8px', marginBottom: 30,
+                        background: isDone && currentIdx > sIdx + 1 ? `linear-gradient(90deg, ${s.color}, ${steps[i + 1].color})` : '#2a2a3a',
+                        transition: 'background 0.4s ease',
+                      }} />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Timer */}
+            {step !== 'complete' && step !== 'error' && (
+              <div style={{ textAlign: 'center', fontSize: 12, color: '#505068', fontFamily: 'var(--font-mono)' }}>
+                Elapsed: {formatElapsed(elapsed)} — Pipeline runs 3 AI agents sequentially
+              </div>
+            )}
+
+            {/* Error */}
+            {step === 'error' && (
+              <div style={{ textAlign: 'center', padding: 16 }}>
+                <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 12 }}>{error}</div>
+                <button onClick={() => setStep('idle')} style={{ background: '#2a2a3a', border: 'none', borderRadius: 6, padding: '8px 20px', color: '#9898b0', cursor: 'pointer', fontSize: 12 }}>Try Again</button>
+              </div>
+            )}
+
+            {/* Results */}
+            {step === 'complete' && result && (
+              <div style={{ borderTop: '1px solid #2a2a3a', paddingTop: 16 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#22c55e', letterSpacing: 1, marginBottom: 12 }}>
+                  CYCLE {result.cycle} COMPLETE — {formatElapsed(elapsed)}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 12 }}>
+                  {/* Discovery result */}
+                  <div style={{ background: '#1a1a25', borderRadius: 8, padding: 12, border: '1px solid #3b82f620' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#3b82f6', letterSpacing: 1, marginBottom: 6 }}>DISCOVERY</div>
+                    <div style={{ fontSize: 12, color: '#9898b0' }}>
+                      Scanned <span style={{ color: '#3b82f6', fontWeight: 600 }}>{result.discovery?.sources_count || 0}</span> sources,
+                      collected <span style={{ color: '#3b82f6', fontWeight: 600 }}>{result.discovery?.findings_length || 0}</span> chars of findings
+                    </div>
+                  </div>
+                  {/* Cognition result */}
+                  <div style={{ background: '#1a1a25', borderRadius: 8, padding: 12, border: '1px solid #a855f720' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#a855f7', letterSpacing: 1, marginBottom: 6 }}>COGNITION</div>
+                    <div style={{ fontSize: 12, color: '#9898b0' }}>
+                      Decision: <span style={{ color: result.cognition?.decision === 'publish' ? '#22c55e' : '#f59e0b', fontWeight: 600 }}>{(result.cognition?.decision || 'unknown').toUpperCase()}</span>
+                      {result.cognition?.post_type && <span> ({result.cognition.post_type})</span>}
+                    </div>
+                    {result.cognition?.debate && (
+                      <div style={{ fontSize: 11, color: '#686880', marginTop: 6 }}>
+                        <div><span style={{ color: '#22c55e' }}>Advocate:</span> {result.cognition.debate.advocate.substring(0, 80)}...</div>
+                        <div><span style={{ color: '#ef4444' }}>Skeptic:</span> {result.cognition.debate.skeptic.substring(0, 80)}...</div>
+                      </div>
+                    )}
+                    {result.cognition?.post_preview && (
+                      <div style={{ fontSize: 11, color: '#9898b0', marginTop: 6, fontStyle: 'italic' }}>
+                        &quot;{result.cognition.post_preview.substring(0, 120)}...&quot;
+                      </div>
+                    )}
+                    {(result.cognition?.new_frameworks || 0) > 0 && <div style={{ fontSize: 11, color: '#22c55e', marginTop: 4 }}>+{result.cognition?.new_frameworks} new framework(s)</div>}
+                    {(result.cognition?.new_predictions || 0) > 0 && <div style={{ fontSize: 11, color: '#f59e0b', marginTop: 2 }}>+{result.cognition?.new_predictions} new prediction(s)</div>}
+                  </div>
+                  {/* Meta-cognition result */}
+                  <div style={{ background: '#1a1a25', borderRadius: 8, padding: 12, border: '1px solid #ec489920' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#ec4899', letterSpacing: 1, marginBottom: 6 }}>META-COGNITION</div>
+                    {result.metacognition?.emotions && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px', marginBottom: 6 }}>
+                        {Object.entries(result.metacognition.emotions).map(([k, v]) => (
+                          <div key={k} style={{ fontSize: 11, display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: '#9898b0', textTransform: 'capitalize' }}>{k}</span>
+                            <span style={{ color: '#ec4899', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{v}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {result.metacognition?.blind_spots && result.metacognition.blind_spots.length > 0 && (
+                      <div style={{ fontSize: 10, color: '#f59e0b', marginTop: 4 }}>
+                        Blind spots: {result.metacognition.blind_spots.slice(0, 2).join(', ')}
+                      </div>
+                    )}
+                    <div style={{ fontSize: 11, color: '#9898b0', marginTop: 4 }}>
+                      Health: <span style={{ color: result.metacognition?.cognitive_health?.includes('GOOD') ? '#22c55e' : '#f59e0b' }}>{result.metacognition?.cognitive_health || 'assessed'}</span>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ textAlign: 'center', marginTop: 16 }}>
+                  <button onClick={() => setStep('idle')} style={{ background: '#2a2a3a', border: 'none', borderRadius: 6, padding: '8px 20px', color: '#9898b0', cursor: 'pointer', fontSize: 12, fontFamily: 'var(--font-mono)' }}>Run Another Cycle</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
+    </section>
+  );
+}
+
+// ============================================================
+// SYSTEM ARCHITECTURE
+// ============================================================
+
+function SystemArchitecture() {
+  return (
+    <section style={{ marginBottom: 32 }}>
+      <SectionHeader>SYSTEM ARCHITECTURE &mdash; 3 AI AGENTS, 10 MEMORY STORES, 1 AUTONOMOUS LOOP</SectionHeader>
+      <Card style={{ padding: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 20 }}>
+          {/* External trigger */}
+          <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '10px 0' }}>
+            <div style={{ background: '#f59e0b15', border: '1px solid #f59e0b30', borderRadius: 8, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 16 }}>&#9200;</span>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#f59e0b', letterSpacing: 1, fontFamily: 'var(--font-mono)' }}>CRON TRIGGER</div>
+                <div style={{ fontSize: 11, color: '#9898b0' }}>Every 35 minutes via cron-job.org</div>
+              </div>
+            </div>
+            <svg width="30" height="20" viewBox="0 0 30 20"><path d="M4 10 L22 10 M18 5 L23 10 L18 15" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" /></svg>
+            <div style={{ background: '#16161f', border: '1px solid #2a2a3a', borderRadius: 8, padding: '8px 16px' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#00d4ff', letterSpacing: 1, fontFamily: 'var(--font-mono)' }}>PIPELINE ORCHESTRATOR</div>
+              <div style={{ fontSize: 11, color: '#9898b0' }}>/api/cron/trigger</div>
+            </div>
+          </div>
+
+          {/* Agent 1: Discovery */}
+          <div style={{ background: '#1a1a25', border: '1px solid #3b82f630', borderRadius: 12, padding: 14, position: 'relative' }}>
+            <div style={{ position: 'absolute', top: 8, right: 10, fontSize: 24, fontWeight: 800, color: '#3b82f610', fontFamily: 'var(--font-mono)' }}>01</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#3b82f6', letterSpacing: 1, marginBottom: 8, fontFamily: 'var(--font-mono)' }}>DISCOVERY AGENT</div>
+            <div style={{ fontSize: 11, color: '#9898b0', lineHeight: 1.6, marginBottom: 10 }}>
+              Scans real-time news. No interpretation &mdash; pure fact collection.
+            </div>
+            <div style={{ fontSize: 10, color: '#505068', borderTop: '1px solid #2a2a3a', paddingTop: 8 }}>
+              <div style={{ marginBottom: 3 }}><span style={{ color: '#3b82f6' }}>Model:</span> Gemini 3.5 Flash</div>
+              <div style={{ marginBottom: 3 }}><span style={{ color: '#3b82f6' }}>Input:</span> Google News RSS</div>
+              <div><span style={{ color: '#3b82f6' }}>Output:</span> Raw findings + sources</div>
+            </div>
+          </div>
+
+          {/* Agent 2: Cognition */}
+          <div style={{ background: '#1a1a25', border: '1px solid #a855f730', borderRadius: 12, padding: 14, position: 'relative' }}>
+            <div style={{ position: 'absolute', top: 8, right: 10, fontSize: 24, fontWeight: 800, color: '#a855f710', fontFamily: 'var(--font-mono)' }}>02</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#a855f7', letterSpacing: 1, marginBottom: 8, fontFamily: 'var(--font-mono)' }}>COGNITION AGENT</div>
+            <div style={{ fontSize: 11, color: '#9898b0', lineHeight: 1.6, marginBottom: 10 }}>
+              9 cognitive systems: framework forge, debate chamber, concept nursery, epistemology, predictions, DNA, earthquakes.
+            </div>
+            <div style={{ fontSize: 10, color: '#505068', borderTop: '1px solid #2a2a3a', paddingTop: 8 }}>
+              <div style={{ marginBottom: 3 }}><span style={{ color: '#a855f7' }}>Model:</span> Gemini 3.5 Flash</div>
+              <div style={{ marginBottom: 3 }}><span style={{ color: '#a855f7' }}>Input:</span> Findings + full mind state</div>
+              <div><span style={{ color: '#a855f7' }}>Output:</span> Post/rejection + frameworks + predictions</div>
+            </div>
+          </div>
+
+          {/* Agent 3: Meta-Cognition */}
+          <div style={{ background: '#1a1a25', border: '1px solid #ec489930', borderRadius: 12, padding: 14, position: 'relative' }}>
+            <div style={{ position: 'absolute', top: 8, right: 10, fontSize: 24, fontWeight: 800, color: '#ec489910', fontFamily: 'var(--font-mono)' }}>03</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#ec4899', letterSpacing: 1, marginBottom: 8, fontFamily: 'var(--font-mono)' }}>META-COGNITION AGENT</div>
+            <div style={{ fontSize: 11, color: '#9898b0', lineHeight: 1.6, marginBottom: 10 }}>
+              Self-regulatory layer. Proxy-anchored emotion scoring, confidence calibration, blind spot detection.
+            </div>
+            <div style={{ fontSize: 10, color: '#505068', borderTop: '1px solid #2a2a3a', paddingTop: 8 }}>
+              <div style={{ marginBottom: 3 }}><span style={{ color: '#ec4899' }}>Model:</span> Gemini 3.5 Flash</div>
+              <div style={{ marginBottom: 3 }}><span style={{ color: '#ec4899' }}>Input:</span> Cognition output + mind state</div>
+              <div><span style={{ color: '#ec4899' }}>Output:</span> Emotions + blind spots + health</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Memory stores */}
+        <div style={{ borderTop: '1px solid #2a2a3a', paddingTop: 14 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#505068', letterSpacing: 1.5, marginBottom: 10 }}>PERSISTENT MEMORY — UPSTASH REDIS (10 GRANULAR STORES)</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {['meta', 'posts', 'rejections', 'nursery (frameworks)', 'dna', 'predictions', 'epistemology', 'emotions', 'debates', 'snapshots'].map(store => (
+              <span key={store} style={{ fontSize: 10, background: '#22c55e10', color: '#22c55e', padding: '3px 8px', borderRadius: 4, fontFamily: 'var(--font-mono)', border: '1px solid #22c55e20' }}>{store}</span>
+            ))}
+          </div>
+        </div>
+
+        {/* Tech stack */}
+        <div style={{ borderTop: '1px solid #2a2a3a', paddingTop: 14, marginTop: 14 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#505068', letterSpacing: 1.5, marginBottom: 10 }}>TECH STACK</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {[
+              { label: 'Next.js 16', color: '#e8e8f0' },
+              { label: 'TypeScript', color: '#3b82f6' },
+              { label: 'Gemini 3.5 Flash', color: '#f59e0b' },
+              { label: 'Upstash Redis', color: '#22c55e' },
+              { label: 'Google News RSS', color: '#ef4444' },
+              { label: 'Vercel', color: '#e8e8f0' },
+              { label: 'cron-job.org', color: '#a855f7' },
+            ].map(t => (
+              <span key={t.label} style={{ fontSize: 10, background: `${t.color}10`, color: t.color, padding: '3px 8px', borderRadius: 4, fontFamily: 'var(--font-mono)', border: `1px solid ${t.color}20` }}>{t.label}</span>
+            ))}
+          </div>
+        </div>
+      </Card>
+    </section>
+  );
+}
+
+// ============================================================
+// MAIN PAGE
+// ============================================================
+
 export default function Home() {
   const [data, setData] = useState<FeedData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -613,6 +961,16 @@ export default function Home() {
               ))}
             </div>
           </section></FadeIn>
+
+          {/* ============================================================ */}
+          {/* SYSTEM ARCHITECTURE */}
+          {/* ============================================================ */}
+          <FadeIn delay={0.15}><SystemArchitecture /></FadeIn>
+
+          {/* ============================================================ */}
+          {/* LIVE PIPELINE TRIGGER */}
+          {/* ============================================================ */}
+          <FadeIn delay={0.2}><LivePipelineMonitor onCycleComplete={fetchFeed} /></FadeIn>
 
           {/* ============================================================ */}
           {/* PIPELINE X-RAY — LATEST CYCLE */}
