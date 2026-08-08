@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 
 // ============================================================
 // TYPES
@@ -164,6 +164,39 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 // ============================================================
+// SCROLL ANIMATION
+// ============================================================
+
+function FadeIn({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); observer.disconnect(); } },
+      { threshold: 0.1 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: visible ? 'translateY(0)' : 'translateY(20px)',
+        transition: `opacity 0.6s ease ${delay}s, transform 0.6s ease ${delay}s`,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// ============================================================
 // UTILITY FUNCTIONS
 // ============================================================
 
@@ -193,6 +226,12 @@ function getTimelineEvents(posts: Post[]) {
 
   const firstFw = chronological.find(p => p.type === 'framework_genesis' || p.type === 'framework_proposal');
   if (firstFw) events.push({ time: firstFw.createdAt, label: '1st Framework', color: '#22c55e', postId: firstFw.id });
+
+  const firstObs = chronological.find(p => p.type === 'observation' || p.type === 'standard');
+  if (firstObs) events.push({ time: firstObs.createdAt, label: '1st Analysis', color: '#6366f1', postId: firstObs.id });
+
+  const firstDebate = chronological.find(p => p.debate_log);
+  if (firstDebate && firstDebate.id !== firstFw?.id) events.push({ time: firstDebate.createdAt, label: '1st Debate', color: '#00d4ff', postId: firstDebate.id });
 
   const firstEq = chronological.find(p => p.type === 'intellectual_earthquake');
   if (firstEq) events.push({ time: firstEq.createdAt, label: '1st Earthquake', color: '#ef4444', postId: firstEq.id });
@@ -239,21 +278,40 @@ function EmotionBar({ label, value, color }: { label: string; value: number; col
 }
 
 function Sparkline({ data, color, width = 200, height = 40 }: { data: number[]; color: string; width?: number; height?: number }) {
-  if (data.length < 2) return <div style={{ width, height, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#505068' }}>awaiting data...</div>;
+  if (data.length === 0) return <div style={{ width, height, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#505068' }}>no data yet</div>;
+  if (data.length === 1) {
+    const y = height / 2;
+    return (
+      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ display: 'block' }}>
+        <line x1="0" y1={y} x2={width * 0.8} y2={y} stroke={color} strokeWidth="1.5" opacity="0.3" strokeDasharray="4 4" />
+        <circle cx={width * 0.9} cy={y} r="4" fill={color} opacity="0.9" />
+        <text x={width * 0.9} y={y - 8} textAnchor="middle" fontSize="10" fill={color} fontFamily="var(--font-mono)">{data[0]}</text>
+      </svg>
+    );
+  }
   const min = Math.min(...data);
   const max = Math.max(...data);
   const range = max - min || 1;
-  const points = data.map((v, i) => {
-    const x = (i / (data.length - 1)) * width;
-    const y = height - ((v - min) / range) * (height - 8) - 4;
+  const pts = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * (width - 8) + 4;
+    const y = height - ((v - min) / range) * (height - 12) - 6;
     return `${x},${y}`;
-  }).join(' ');
-  const lastVal = data[data.length - 1];
+  });
+  const lastX = parseFloat(pts[pts.length - 1].split(',')[0]);
+  const lastY = parseFloat(pts[pts.length - 1].split(',')[1]);
+  const gradId = `sg-${color.replace('#', '')}`;
 
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ display: 'block' }}>
-      <polyline fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" points={points} opacity="0.8" />
-      <circle cx={(data.length - 1) / (data.length - 1) * width} cy={height - ((lastVal - min) / range) * (height - 8) - 4} r="3" fill={color} />
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon fill={`url(#${gradId})`} points={`${pts[0].split(',')[0]},${height} ${pts.join(' ')} ${lastX},${height}`} />
+      <polyline fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" points={pts.join(' ')} opacity="0.9" />
+      <circle cx={lastX} cy={lastY} r="3" fill={color} />
     </svg>
   );
 }
@@ -514,18 +572,18 @@ export default function Home() {
           {/* ============================================================ */}
           {/* WHO THIS IS FOR */}
           {/* ============================================================ */}
-          <div style={{
+          <FadeIn><div style={{
             textAlign: 'center', padding: '14px 20px', background: '#00d4ff08', border: '1px solid #00d4ff20',
             borderRadius: 10, marginBottom: 28, fontSize: 13, color: '#9898b0', lineHeight: 1.5,
           }}>
             Built for <span style={{ color: '#00d4ff', fontWeight: 600 }}>AI investors, analysts, and researchers</span> who
             need to track a fast-moving industry without blind spots.
-          </div>
+          </div></FadeIn>
 
           {/* ============================================================ */}
           {/* SCENE 2: HOW AXIOM WORKS — PIPELINE DIAGRAM */}
           {/* ============================================================ */}
-          <section style={{ marginBottom: 32 }}>
+          <FadeIn delay={0.1}><section style={{ marginBottom: 32 }}>
             <SectionHeader>HOW AXIOM WORKS &mdash; EVERY 35 MINUTES, AUTONOMOUSLY</SectionHeader>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 0, position: 'relative' }}>
               {[
@@ -544,18 +602,23 @@ export default function Home() {
                     <div style={{ fontSize: 11, color: s.color, fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{s.detail}</div>
                   </div>
                   {i < 2 && (
-                    <div style={{ display: 'flex', alignItems: 'center', padding: '0 4px', color: '#2a2a3a', fontSize: 18 }}>&rarr;</div>
+                    <div style={{ display: 'flex', alignItems: 'center', padding: '0 2px', flexShrink: 0 }}>
+                      <svg width="28" height="28" viewBox="0 0 28 28">
+                        <defs><linearGradient id={`arrow-${i}`} x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor={s.color} stopOpacity="0.6" /><stop offset="100%" stopColor={[{ step: '01', title: 'DISCOVER', color: '#3b82f6', desc: '', detail: '' }, { step: '02', title: 'COGNITION', color: '#a855f7', desc: '', detail: '' }, { step: '03', title: 'META-COGNITION', color: '#ec4899', desc: '', detail: '' }][i + 1].color} stopOpacity="0.6" /></linearGradient></defs>
+                        <path d="M6 14 L18 14 M14 9 L19 14 L14 19" fill="none" stroke={`url(#arrow-${i})`} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
                   )}
                 </div>
               ))}
             </div>
-          </section>
+          </section></FadeIn>
 
           {/* ============================================================ */}
           {/* PIPELINE X-RAY — LATEST CYCLE */}
           {/* ============================================================ */}
           {latestAnalysis && (
-            <section style={{ marginBottom: 32 }}>
+            <FadeIn delay={0.1}><section style={{ marginBottom: 32 }}>
               <SectionHeader>WATCH AXIOM THINK &mdash; LATEST EDITORIAL DECISION</SectionHeader>
               <Card>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 16 }}>
@@ -598,14 +661,14 @@ export default function Home() {
                   </div>
                 </div>
               </Card>
-            </section>
+            </section></FadeIn>
           )}
 
           {/* ============================================================ */}
           {/* SCENE 3: EDITORIAL TIMELINE */}
           {/* ============================================================ */}
           {timelineEvents.length > 0 && (
-            <section style={{ marginBottom: 32 }}>
+            <FadeIn><section style={{ marginBottom: 32 }}>
               <SectionHeader>EDITORIAL TIMELINE</SectionHeader>
               <Card style={{ padding: '20px 24px', overflowX: 'auto' }}>
                 <div style={{ display: 'flex', alignItems: 'center', minWidth: 'fit-content' }}>
@@ -623,13 +686,13 @@ export default function Home() {
                   ))}
                 </div>
               </Card>
-            </section>
+            </section></FadeIn>
           )}
 
           {/* ============================================================ */}
           {/* SCENE 4: 48-HOUR REPORT CARD */}
           {/* ============================================================ */}
-          <section style={{ marginBottom: 32 }}>
+          <FadeIn><section style={{ marginBottom: 32 }}>
             <SectionHeader>REPORT CARD &mdash; WHAT AXIOM PRODUCED</SectionHeader>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, marginBottom: 14 }}>
               <StatCard label="HOURS ALIVE" value={formatDuration(mind.cognitive_age_hours)} color="#00d4ff" />
@@ -661,12 +724,12 @@ export default function Home() {
                 </div>
               </div>
             </Card>
-          </section>
+          </section></FadeIn>
 
           {/* ============================================================ */}
           {/* SCENE 5: EMOTION HISTORY SPARKLINES */}
           {/* ============================================================ */}
-          <section style={{ marginBottom: 32 }}>
+          <FadeIn><section style={{ marginBottom: 32 }}>
             <SectionHeader>EDITORIAL INSTINCTS OVER TIME</SectionHeader>
             <Card>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
@@ -696,12 +759,12 @@ export default function Home() {
                 Each score computed from measurable proxies (unanswered questions, framework confidence changes, ignorance ratio, prediction accuracy) &mdash; not self-reported.
               </div>
             </Card>
-          </section>
+          </section></FadeIn>
 
           {/* ============================================================ */}
           {/* SCENE 6: FRAMEWORK LIFECYCLE + SELF-CORRECTION PROOF */}
           {/* ============================================================ */}
-          <section style={{ marginBottom: 32 }}>
+          <FadeIn><section style={{ marginBottom: 32 }}>
             <SectionHeader>FRAMEWORK LIFECYCLE &mdash; SELF-CORRECTION IN ACTION</SectionHeader>
             {(data.frameworks || []).length === 0 ? (
               <Card><div style={{ textAlign: 'center', color: '#686880', fontSize: 13, padding: 20 }}>No frameworks yet. AXIOM will start building analytical models as it discovers patterns.</div></Card>
@@ -751,13 +814,13 @@ export default function Home() {
                 ))}
               </div>
             )}
-          </section>
+          </section></FadeIn>
 
           {/* ============================================================ */}
           {/* PREDICTION TRACKER */}
           {/* ============================================================ */}
           {(data.predictions_list || []).length > 0 && (
-            <section style={{ marginBottom: 32 }}>
+            <FadeIn><section style={{ marginBottom: 32 }}>
               <SectionHeader>PREDICTION TRACKER &mdash; ACCOUNTABILITY IN ACTION</SectionHeader>
               <div style={{ display: 'grid', gap: 10 }}>
                 {(data.predictions_list || []).map(pred => (
@@ -776,7 +839,7 @@ export default function Home() {
                     </div>
                     <div style={{ fontSize: 13, color: '#e8e8f0', lineHeight: 1.6, marginBottom: 4 }}>{pred.prediction}</div>
                     <div style={{ fontSize: 11, color: '#686880' }}>
-                      From framework: <span style={{ color: '#22c55e' }}>{pred.derivedFromFramework}</span>
+                      From framework: <span style={{ color: '#22c55e' }}>{pred.derivedFromFramework === 'unknown' ? 'Self-derived analysis' : pred.derivedFromFramework}</span>
                     </div>
                     {pred.resolution && (
                       <div style={{ fontSize: 11, color: pred.status === 'confirmed' ? '#22c55e' : '#ef4444', marginTop: 4, fontStyle: 'italic' }}>
@@ -786,13 +849,13 @@ export default function Home() {
                   </Card>
                 ))}
               </div>
-            </section>
+            </section></FadeIn>
           )}
 
           {/* ============================================================ */}
           {/* SCENE 7: WHY AXIOM IS DIFFERENT */}
           {/* ============================================================ */}
-          <section style={{ marginBottom: 32 }}>
+          <FadeIn><section style={{ marginBottom: 32 }}>
             <SectionHeader>WHY AXIOM IS DIFFERENT</SectionHeader>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, borderRadius: 12, overflow: 'hidden', border: '1px solid #2a2a3a' }}>
               {/* Header */}
@@ -821,12 +884,12 @@ export default function Home() {
                 </div>
               ))}
             </div>
-          </section>
+          </section></FadeIn>
 
           {/* ============================================================ */}
           {/* GROWTH + EMOTIONS SIDE BY SIDE */}
           {/* ============================================================ */}
-          <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, marginBottom: 28 }}>
+          <FadeIn><section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, marginBottom: 28 }}>
             <Card>
               <div style={{ fontSize: 10, fontWeight: 700, color: '#505068', letterSpacing: 1.5, marginBottom: 10 }}>CURRENT EDITORIAL INSTINCTS</div>
               <EmotionBar label="Curiosity" value={mind.cognitive_emotions.curiosity} color="#00d4ff" />
@@ -856,7 +919,7 @@ export default function Home() {
                 );
               })}
             </Card>
-          </section>
+          </section></FadeIn>
 
           {/* ============================================================ */}
           {/* SCENE 8: LIVE FEED TABS */}
