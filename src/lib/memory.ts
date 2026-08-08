@@ -1,13 +1,40 @@
+import { Redis } from '@upstash/redis';
 import type { Post, Rejection, FeedResponse, MindState, CognitiveEmotions, CognitiveStage, Persona } from './types';
 
 // ============================================================
-// MEMBER 2 — Memory & Data Layer (Breeth Integration)
-// ============================================================
-// These are stubs. Member 2 will implement the real Breeth-backed
-// versions. The interface contract is frozen — don't change signatures.
+// Persistence via Upstash Redis (REST-based, works in serverless)
+// Falls back to in-memory store if UPSTASH env vars not set.
 // ============================================================
 
-const store: Record<string, unknown> = {};
+let redis: Redis | null = null;
+const localStore: Record<string, unknown> = {};
+
+function getRedis(): Redis | null {
+  if (redis) return redis;
+  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    });
+    return redis;
+  }
+  return null;
+}
+
+async function kGet<T>(k: string): Promise<T | null> {
+  const r = getRedis();
+  if (r) return await r.get<T>(k);
+  return (localStore[k] as T) ?? null;
+}
+
+async function kSet(k: string, value: unknown): Promise<void> {
+  const r = getRedis();
+  if (r) {
+    await r.set(k, JSON.stringify(value));
+  } else {
+    localStore[k] = value;
+  }
+}
 
 function key(agentId: string, suffix: string): string {
   return `axiom:${agentId}:${suffix}`;
@@ -29,34 +56,37 @@ export async function initMindState(agentId: string, persona: Persona): Promise<
     cognitive_health: 'NASCENT — no data yet',
   };
 
-  store[key(agentId, 'meta')] = { agentId, persona, initTimestamp: new Date().toISOString(), cycleCount: 0, completedSnapshots: 0 };
-  store[key(agentId, 'mind')] = emptyMind;
-  store[key(agentId, 'posts')] = [];
-  store[key(agentId, 'rejections')] = [];
+  await kSet(key(agentId, 'meta'), { agentId, persona, initTimestamp: new Date().toISOString(), cycleCount: 0, completedSnapshots: 0 });
+  await kSet(key(agentId, 'mind'), emptyMind);
+  await kSet(key(agentId, 'posts'), []);
+  await kSet(key(agentId, 'rejections'), []);
 }
 
 export async function getAgentMeta(agentId: string): Promise<{ initTimestamp: string; cycleCount: number; completedSnapshots: number; persona: Persona } | null> {
-  return (store[key(agentId, 'meta')] as { initTimestamp: string; cycleCount: number; completedSnapshots: number; persona: Persona }) || null;
+  return kGet(key(agentId, 'meta'));
 }
 
 export async function incrementCycleCount(agentId: string): Promise<void> {
-  const meta = store[key(agentId, 'meta')] as Record<string, unknown>;
-  if (meta) meta.cycleCount = (meta.cycleCount as number) + 1;
+  const meta = await kGet<Record<string, unknown>>(key(agentId, 'meta'));
+  if (meta) {
+    meta.cycleCount = (meta.cycleCount as number) + 1;
+    await kSet(key(agentId, 'meta'), meta);
+  }
 }
 
 export async function addPost(agentId: string, post: Post): Promise<void> {
-  const posts = (store[key(agentId, 'posts')] as Post[]) || [];
+  const posts = (await kGet<Post[]>(key(agentId, 'posts'))) || [];
   posts.push(post);
-  store[key(agentId, 'posts')] = posts;
+  await kSet(key(agentId, 'posts'), posts);
 }
 
 export async function loadMindState(agentId: string): Promise<MindState | null> {
-  return (store[key(agentId, 'mind')] as MindState) || null;
+  return kGet(key(agentId, 'mind'));
 }
 
 export async function compressMindState(agentId: string): Promise<string> {
   const mind = await loadMindState(agentId);
-  const posts = (store[key(agentId, 'posts')] as Post[]) || [];
+  const posts = (await kGet<Post[]>(key(agentId, 'posts'))) || [];
   const recentPosts = posts.slice(-5);
   const olderSummaries = posts.slice(0, -5).map(p => `[${p.id}] ${p.type}: ${p.text.substring(0, 80)}...`);
 
@@ -77,20 +107,20 @@ export async function saveCycleOutput(agentId: string, output: {
     await addPost(agentId, output.post);
   }
   if (output.rejection) {
-    const rejections = (store[key(agentId, 'rejections')] as Rejection[]) || [];
+    const rejections = (await kGet<Rejection[]>(key(agentId, 'rejections'))) || [];
     rejections.push(output.rejection);
-    store[key(agentId, 'rejections')] = rejections;
+    await kSet(key(agentId, 'rejections'), rejections);
   }
   if (output.mindStateUpdates) {
-    const mind = (store[key(agentId, 'mind')] as MindState) || {};
-    store[key(agentId, 'mind')] = { ...mind, ...output.mindStateUpdates };
+    const mind = (await kGet<MindState>(key(agentId, 'mind'))) || {} as MindState;
+    await kSet(key(agentId, 'mind'), { ...mind, ...output.mindStateUpdates });
   }
   await incrementCycleCount(agentId);
 }
 
 export async function getPreviousTopics(agentId: string): Promise<string[]> {
-  const posts = (store[key(agentId, 'posts')] as Post[]) || [];
-  const rejections = (store[key(agentId, 'rejections')] as Rejection[]) || [];
+  const posts = (await kGet<Post[]>(key(agentId, 'posts'))) || [];
+  const rejections = (await kGet<Rejection[]>(key(agentId, 'rejections'))) || [];
   return [
     ...posts.map(p => p.text.substring(0, 100)),
     ...rejections.map(r => r.topic),
@@ -98,17 +128,17 @@ export async function getPreviousTopics(agentId: string): Promise<string[]> {
 }
 
 export async function getFullFeedResponse(agentId: string): Promise<FeedResponse> {
-  const mind = (store[key(agentId, 'mind')] as MindState) || {} as MindState;
-  const posts = ((store[key(agentId, 'posts')] as Post[]) || []).slice().reverse();
-  const rejections = ((store[key(agentId, 'rejections')] as Rejection[]) || []).slice().reverse();
+  const mind = (await kGet<MindState>(key(agentId, 'mind'))) || {} as MindState;
+  const posts = ((await kGet<Post[]>(key(agentId, 'posts'))) || []).slice().reverse();
+  const rejections = ((await kGet<Rejection[]>(key(agentId, 'rejections'))) || []).slice().reverse();
   return { posts, rejections, mind_state: mind };
 }
 
 export async function generateWorldviewSnapshot(agentId: string, cognitiveStage: CognitiveStage): Promise<Post> {
-  const meta = store[key(agentId, 'meta')] as Record<string, unknown>;
+  const meta = await kGet<Record<string, unknown>>(key(agentId, 'meta'));
   const snapshotNum = ((meta?.completedSnapshots as number) || 0) + 1;
   const mind = await loadMindState(agentId);
-  const posts = (store[key(agentId, 'posts')] as Post[]) || [];
+  const posts = (await kGet<Post[]>(key(agentId, 'posts'))) || [];
 
   const post: Post = {
     id: `AXM-SNAP-${snapshotNum}`,
@@ -121,13 +151,16 @@ export async function generateWorldviewSnapshot(agentId: string, cognitiveStage:
   };
 
   await addPost(agentId, post);
-  if (meta) meta.completedSnapshots = snapshotNum;
+  if (meta) {
+    meta.completedSnapshots = snapshotNum;
+    await kSet(key(agentId, 'meta'), meta);
+  }
   return post;
 }
 
 export async function generateTestament(agentId: string, cognitiveStage: CognitiveStage): Promise<Post> {
   const mind = await loadMindState(agentId);
-  const posts = (store[key(agentId, 'posts')] as Post[]) || [];
+  const posts = (await kGet<Post[]>(key(agentId, 'posts'))) || [];
 
   const post: Post = {
     id: `AXM-TESTAMENT`,
