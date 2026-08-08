@@ -463,9 +463,9 @@ function LivePipelineMonitor({ onCycleComplete }: { onCycleComplete: () => void 
     timerRef.current = setInterval(() => setElapsed(e => e + 100), 100);
 
     try {
-      // Simulate step progression based on typical pipeline timings
-      const t1 = setTimeout(() => setStep(s => s === 'discovering' ? 'cognizing' : s), 8000);
-      const t2 = setTimeout(() => setStep(s => s === 'cognizing' ? 'reflecting' : s), 22000);
+      // Simulate step progression — pipeline takes 30-90s depending on rate limits
+      const t1 = setTimeout(() => setStep(s => s === 'discovering' ? 'cognizing' : s), 12000);
+      const t2 = setTimeout(() => setStep(s => s === 'cognizing' ? 'reflecting' : s), 35000);
 
       const res = await fetch('/api/agent/trigger', { method: 'POST' });
       clearTimeout(t1);
@@ -512,7 +512,7 @@ function LivePipelineMonitor({ onCycleComplete }: { onCycleComplete: () => void 
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
             <div style={{ fontSize: 13, color: '#9898b0', marginBottom: 16, lineHeight: 1.6 }}>
               Trigger a full autonomous cycle. AXIOM will scan real news, analyze it with its existing frameworks,
-              debate whether to publish, and update its emotional state &mdash; all in ~30 seconds.
+              debate whether to publish, and update its emotional state. Takes 30&ndash;90 seconds.
             </div>
             <button
               onClick={runCycle}
@@ -592,7 +592,7 @@ function LivePipelineMonitor({ onCycleComplete }: { onCycleComplete: () => void 
             {/* Timer */}
             {step !== 'complete' && step !== 'error' && (
               <div style={{ textAlign: 'center', fontSize: 12, color: '#505068', fontFamily: 'var(--font-mono)' }}>
-                Elapsed: {formatElapsed(elapsed)} — Pipeline runs 3 AI agents sequentially
+                Elapsed: {formatElapsed(elapsed)} — 3 AI agents running sequentially (may retry on rate limits)
               </div>
             )}
 
