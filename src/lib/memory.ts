@@ -633,7 +633,16 @@ export async function getFullFeedResponse(agentId: string): Promise<FeedResponse
 
   mind.intellectual_earthquakes = (posts || []).filter(p => p.type === 'intellectual_earthquake').length;
 
-  return { posts: allPosts, rejections: allRejections, mind_state: mind };
+  return {
+    posts: allPosts,
+    rejections: allRejections,
+    mind_state: mind,
+    frameworks: nursery || [],
+    predictions_list: predictions || [],
+    emotion_history: (emotions || defaultEmotions).history,
+    dna_strands: dna || [],
+    init_timestamp: meta.initTimestamp,
+  };
 }
 
 // ============================================================

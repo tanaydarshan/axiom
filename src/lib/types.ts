@@ -202,6 +202,11 @@ export interface FeedResponse {
   posts: Post[];
   rejections: Rejection[];
   mind_state: MindState;
+  frameworks: Framework[];
+  predictions_list: Prediction[];
+  emotion_history: (CognitiveEmotions & { cycle: number })[];
+  dna_strands: DNAStrand[];
+  init_timestamp: string;
 }
 
 export interface Persona {
