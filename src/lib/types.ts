@@ -12,6 +12,10 @@ export type PostType =
   | 'worldview_snapshot'
   | 'testament';
 
+export type FrameworkStatus = 'seedling' | 'sapling' | 'mature' | 'fallen' | 'composted';
+export type PredictionStatus = 'pending' | 'confirmed' | 'failed';
+export type DebateWinner = 'advocate' | 'skeptic' | 'compromise';
+
 export interface CognitiveEmotions {
   curiosity: number;
   excitement: number;
@@ -54,6 +58,72 @@ export interface Rejection {
   };
 }
 
+export interface Framework {
+  id: string;
+  name: string;
+  description: string;
+  status: FrameworkStatus;
+  confidence: number;
+  bornCycle: number;
+  diedCycle?: number;
+  evidenceTests: number;
+  evidenceTestsPassed: number;
+  testablePredictions: string[];
+  deathDiagnosis?: string;
+  compostedInto?: string;
+  parentFramework?: string;
+  intellectualLineage?: string;
+}
+
+export interface DNAStrand {
+  id: string;
+  name: string;
+  principle: string;
+  crystallizedCycle: number;
+  originTrace: string;
+  status: 'active' | 'mutated';
+  mutationHistory?: string[];
+}
+
+export interface Prediction {
+  id: string;
+  prediction: string;
+  stakedCycle: number;
+  stakedAt: string;
+  confidence: number;
+  derivedFromFramework: string;
+  status: PredictionStatus;
+  resolution?: string;
+  resolvedCycle?: number;
+}
+
+export interface Epistemology {
+  observedFacts: { fact: string; confidence: number; sources: string[] }[];
+  rawIntuitions: { intuition: string; basis: string }[];
+  frameworkDerivedBeliefs: { belief: string; framework: string; confidence: number }[];
+  acknowledgedIgnorances: string[];
+  unknownUnknownsFlag: boolean;
+}
+
+export interface EmotionState {
+  current: CognitiveEmotions;
+  curiosityFocusAreas: string[];
+  history: (CognitiveEmotions & { cycle: number })[];
+}
+
+export interface DebateStats {
+  totalDebates: number;
+  advocateWins: number;
+  skepticWins: number;
+  compromises: number;
+  logs: {
+    cycle: number;
+    postId: string;
+    winner: DebateWinner;
+    qualityScore: string;
+  }[];
+}
+
 export interface ConceptNursery {
   seedlings: number;
   saplings: number;
@@ -61,6 +131,19 @@ export interface ConceptNursery {
   fallen: number;
   composted: number;
   total_concepts_ever_created: number;
+}
+
+export interface AxiomMeta {
+  agentId: string;
+  persona: Persona;
+  initTimestamp: string;
+  currentCycle: number;
+  cognitiveStage: CognitiveStage;
+  totalTopicsDiscovered: number;
+  totalTopicsRejected: number;
+  totalTopicsPublished: number;
+  cognitiveHealth: string;
+  completedSnapshots: number;
 }
 
 export interface MindState {
@@ -99,6 +182,22 @@ export interface MindState {
   cognitive_health: string;
 }
 
+export interface CompressedMindState {
+  meta: AxiomMeta;
+  recentPosts: Post[];
+  olderPostSummaries: string[];
+  activeFrameworks: Framework[];
+  fallenFrameworkSummaries: string[];
+  dna: DNAStrand[];
+  pendingPredictions: Prediction[];
+  resolvedPredictionsSummary: string;
+  epistemology: Epistemology;
+  currentEmotions: CognitiveEmotions;
+  curiosityFocusAreas: string[];
+  debateStats: Omit<DebateStats, 'logs'>;
+  previousTopics: string[];
+}
+
 export interface FeedResponse {
   posts: Post[];
   rejections: Rejection[];
@@ -133,9 +232,15 @@ export interface MetaCognitionInput {
 export interface CycleOutput {
   post?: Post;
   rejection?: Rejection;
-  nurseryUpdates?: Record<string, unknown>;
-  dnaUpdates?: Record<string, unknown>;
-  predictionUpdates?: Record<string, unknown>;
-  epistemologyUpdates?: Record<string, unknown>;
+  frameworkCreates?: Framework[];
+  frameworkUpdates?: { id: string; updates: Partial<Framework> }[];
+  frameworkKills?: { id: string; diagnosis: string }[];
+  dnaStrand?: DNAStrand;
+  predictionCreates?: Prediction[];
+  predictionResolutions?: { id: string; status: PredictionStatus; evidence: string }[];
+  epistemologyUpdate?: Epistemology;
+  emotionUpdate?: { current: CognitiveEmotions; focusAreas: string[] };
+  debateLog?: DebateStats['logs'][0];
   emotions?: CognitiveEmotions;
+  mindStateUpdates?: Partial<MindState>;
 }

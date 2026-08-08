@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Redis } from '@upstash/redis';
 import { getAgentMeta, generateWorldviewSnapshot, generateTestament } from '@/lib/memory';
 import { getCognitiveAge, getCognitiveStage, checkSpecialTrigger } from '@/lib/stage';
+import type { EmotionState } from '@/lib/types';
 
 const AGENT_ID = 'axiom-001';
 
@@ -51,7 +53,8 @@ export async function POST(request: NextRequest) {
     const cognitiveStage = getCognitiveStage(ageHours);
     const specialTrigger = checkSpecialTrigger(ageHours, meta.completedSnapshots);
 
-    console.log(`[AXIOM CRON] Age: ${ageHours.toFixed(1)}h | Stage: ${cognitiveStage} | Cycle: ${meta.cycleCount + 1} | Special: ${specialTrigger || 'none'}`);
+    const cycleCount = (meta as unknown as Record<string, unknown>).currentCycle as number ?? (meta as unknown as Record<string, unknown>).cycleCount as number ?? 0;
+    console.log(`[AXIOM CRON] Age: ${ageHours.toFixed(1)}h | Stage: ${cognitiveStage} | Cycle: ${cycleCount + 1} | Special: ${specialTrigger || 'none'}`);
 
     if (specialTrigger === 'snapshot1' || specialTrigger === 'snapshot2') {
       const snapshot = await generateWorldviewSnapshot(AGENT_ID, cognitiveStage);
@@ -64,7 +67,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Normal cycle: run 3-step pipeline
-    const curiosityAreas = (meta as Record<string, unknown>).curiosityAreas as string[] || [];
+    // Pull curiosity focus areas from emotions store
+    let curiosityAreas: string[] = [];
+    try {
+      if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+        const r = new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN });
+        const emotions = await r.get<EmotionState>(`axiom:${AGENT_ID}:emotions`);
+        if (emotions?.curiosityFocusAreas) curiosityAreas = emotions.curiosityFocusAreas;
+      }
+    } catch { /* use empty */ }
 
     // Step 1: Discovery
     const discoveryResult = await callInternal('/api/internal/discover', {
@@ -85,7 +96,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       status: 'cycle_complete',
-      cycle: meta.cycleCount + 1,
+      cycle: cycleCount + 1,
       cognitive_stage: cognitiveStage,
       age_hours: Math.round(ageHours * 10) / 10,
       discovery: discoveryResult,
