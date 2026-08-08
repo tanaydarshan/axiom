@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     );
 
     const response = await callLLM({
-      model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
+      model: process.env.GEMINI_DISCOVER_MODEL || 'gemini-2.0-flash',
       maxTokens: 4096,
       systemPrompt,
       userMessage: `Here are the latest web search results about AI and technology:\n\n${searchContext}\n\nAnalyze these findings. Report what you observe, what patterns you notice, and what confuses or interests you.`,

@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     });
 
     const response = await callLLM({
-      model: process.env.GEMINI_MODEL || 'gemini-3.5-flash',
+      model: process.env.GEMINI_META_MODEL || 'gemini-2.0-flash',
       maxTokens: 2048,
       systemPrompt,
       userMessage,
