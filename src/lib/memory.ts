@@ -605,7 +605,12 @@ export async function getFullFeedResponse(agentId: string): Promise<FeedResponse
 
   if (!meta) {
     const mind = (await kGet<MindState>(key(agentId, 'mind'))) || {} as MindState;
-    return { posts: allPosts, rejections: allRejections, mind_state: mind };
+    return {
+      posts: allPosts, rejections: allRejections, mind_state: mind,
+      frameworks: nursery || [], predictions_list: predictions || [],
+      emotion_history: (emotions as EmotionState | null)?.history || [],
+      dna_strands: dna || [], init_timestamp: '',
+    };
   }
 
   const defaultEpistemology: Epistemology = {
