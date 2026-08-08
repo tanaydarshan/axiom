@@ -718,7 +718,7 @@ function SystemArchitecture() {
               Scans real-time news. No interpretation &mdash; pure fact collection.
             </div>
             <div style={{ fontSize: 10, color: '#505068', borderTop: '1px solid #2a2a3a', paddingTop: 8 }}>
-              <div style={{ marginBottom: 3 }}><span style={{ color: '#3b82f6' }}>Model:</span> Gemini 2.0 Flash</div>
+              <div style={{ marginBottom: 3 }}><span style={{ color: '#3b82f6' }}>Model:</span> Gemini 3.5 Flash</div>
               <div style={{ marginBottom: 3 }}><span style={{ color: '#3b82f6' }}>Input:</span> Google News RSS</div>
               <div><span style={{ color: '#3b82f6' }}>Output:</span> Raw findings + sources</div>
             </div>
@@ -732,7 +732,7 @@ function SystemArchitecture() {
               9 cognitive systems: framework forge, debate chamber, concept nursery, epistemology, predictions, DNA, earthquakes.
             </div>
             <div style={{ fontSize: 10, color: '#505068', borderTop: '1px solid #2a2a3a', paddingTop: 8 }}>
-              <div style={{ marginBottom: 3 }}><span style={{ color: '#a855f7' }}>Model:</span> Gemini 2.0 Flash</div>
+              <div style={{ marginBottom: 3 }}><span style={{ color: '#a855f7' }}>Model:</span> Gemini 3.5 Flash</div>
               <div style={{ marginBottom: 3 }}><span style={{ color: '#a855f7' }}>Input:</span> Findings + full mind state</div>
               <div><span style={{ color: '#a855f7' }}>Output:</span> Post/rejection + frameworks + predictions</div>
             </div>
@@ -746,7 +746,7 @@ function SystemArchitecture() {
               Self-regulatory layer. Proxy-anchored emotion scoring, confidence calibration, blind spot detection.
             </div>
             <div style={{ fontSize: 10, color: '#505068', borderTop: '1px solid #2a2a3a', paddingTop: 8 }}>
-              <div style={{ marginBottom: 3 }}><span style={{ color: '#ec4899' }}>Model:</span> Gemini 2.0 Flash</div>
+              <div style={{ marginBottom: 3 }}><span style={{ color: '#ec4899' }}>Model:</span> Gemini 3.5 Flash</div>
               <div style={{ marginBottom: 3 }}><span style={{ color: '#ec4899' }}>Input:</span> Cognition output + mind state</div>
               <div><span style={{ color: '#ec4899' }}>Output:</span> Emotions + blind spots + health</div>
             </div>
@@ -770,7 +770,7 @@ function SystemArchitecture() {
             {[
               { label: 'Next.js 16', color: '#e8e8f0' },
               { label: 'TypeScript', color: '#3b82f6' },
-              { label: 'Gemini 2.0 Flash', color: '#f59e0b' },
+              { label: 'Gemini 3.5 Flash', color: '#f59e0b' },
               { label: 'Upstash Redis', color: '#22c55e' },
               { label: 'Google News RSS', color: '#ef4444' },
               { label: 'Vercel', color: '#e8e8f0' },
