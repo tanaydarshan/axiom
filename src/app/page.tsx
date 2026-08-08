@@ -372,11 +372,11 @@ export default function Home() {
   const heroLine = useMemo(() => {
     if (!mind) return '';
     const age = formatDuration(mind.cognitive_age_hours);
-    const parts: string[] = [`Started ${age} ago with zero knowledge`];
-    if (mind.total_cycles > 0) parts.push(`${mind.total_cycles} thinking cycles completed`);
-    if (mind.concept_nursery.total_concepts_ever_created > 0) parts.push(`${mind.concept_nursery.total_concepts_ever_created} frameworks invented`);
-    if (mind.predictions.total > 0) parts.push(`${mind.predictions.total} predictions made`);
-    if (mind.debate_stats.total_debates > 0) parts.push(`${mind.debate_stats.total_debates} internal debates held`);
+    const parts: string[] = [`Reporting for ${age}`];
+    if (mind.total_cycles > 0) parts.push(`${mind.total_cycles} news cycles analyzed`);
+    if (mind.concept_nursery.total_concepts_ever_created > 0) parts.push(`${mind.concept_nursery.total_concepts_ever_created} original frameworks built`);
+    if (mind.predictions.total > 0) parts.push(`${mind.predictions.total} predictions on record`);
+    if (mind.debate_stats.total_debates > 0) parts.push(`${mind.debate_stats.total_debates} editorial debates held`);
     return parts.join(' · ');
   }, [mind]);
 
@@ -399,7 +399,7 @@ export default function Home() {
           fontSize: 11, fontWeight: 700, letterSpacing: 3, color: '#00d4ff', fontFamily: 'var(--font-mono)',
           marginBottom: 12, opacity: 0.8,
         }}>
-          ABTalks VIBE CODE HACKATHON
+          AUTONOMOUS AI JOURNALIST
         </div>
         <h1 style={{
           fontSize: 44, fontWeight: 800, letterSpacing: -1.5, lineHeight: 1.1,
@@ -412,13 +412,14 @@ export default function Home() {
         <p style={{
           fontSize: 16, color: '#e8e8f0', fontWeight: 500, marginBottom: 8, lineHeight: 1.4,
         }}>
-          The First Self-Correcting Autonomous AI Analyst
+          An AI journalist covering the AI industry &mdash; 24/7, autonomously.
         </p>
         <p style={{
-          fontSize: 13, color: '#686880', maxWidth: 600, margin: '0 auto', lineHeight: 1.6,
+          fontSize: 13, color: '#686880', maxWidth: 620, margin: '0 auto', lineHeight: 1.6,
         }}>
-          An AI that builds frameworks, makes falsifiable predictions, debates itself, and publicly tracks when it&apos;s wrong.
-          Not just smart &mdash; accountable.
+          It discovers news every 35 minutes, forms its own opinions, invents analytical frameworks,
+          debates itself before publishing, makes falsifiable predictions, and publicly corrects itself when wrong.
+          It started with zero knowledge.
         </p>
         {mind && (
           <div style={{
@@ -456,7 +457,7 @@ export default function Home() {
           {timelineEvents.length > 0 && (
             <section style={{ marginBottom: 32 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: '#505068', letterSpacing: 1.5, marginBottom: 12 }}>
-                COGNITIVE JOURNEY
+                EDITORIAL TIMELINE
               </div>
               <div style={{
                 background: '#16161f', border: '1px solid #2a2a3a', borderRadius: 12,
@@ -519,14 +520,14 @@ export default function Home() {
             {/* Current Emotions */}
             <div style={{ background: '#16161f', border: '1px solid #2a2a3a', borderRadius: 12, padding: 16 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: '#505068', letterSpacing: 1.5, marginBottom: 10 }}>
-                COGNITIVE EMOTIONS (LIVE)
+                EDITORIAL INSTINCTS (LIVE)
               </div>
               <EmotionBar label="Curiosity" value={mind.cognitive_emotions.curiosity} color="#00d4ff" />
               <EmotionBar label="Excitement" value={mind.cognitive_emotions.excitement} color="#a855f7" />
               <EmotionBar label="Anxiety" value={mind.cognitive_emotions.anxiety} color="#ef4444" />
               <EmotionBar label="Confidence" value={mind.cognitive_emotions.confidence} color="#22c55e" />
               <div style={{ fontSize: 10, color: '#505068', marginTop: 8, fontStyle: 'italic' }}>
-                Scores computed via proxy-anchored measurement, not self-reported
+                Measured via proxy-anchored signals, not self-reported
               </div>
             </div>
 
@@ -633,8 +634,8 @@ export default function Home() {
                 background: '#16161f', border: '1px solid #2a2a3a', borderRadius: 12,
                 padding: 14, marginBottom: 16, fontSize: 13, color: '#9898b0', lineHeight: 1.6,
               }}>
-                AXIOM rejects topics that don&apos;t meet its editorial bar: single-source stories, duplicates, or topics that add nothing new.
-                A healthy rejection rate (30-60%) shows genuine editorial judgment, not blindly publishing everything.
+                Like any good journalist, AXIOM kills stories that don&apos;t meet its editorial bar &mdash; single-source claims, duplicates, or topics that add nothing new.
+                A healthy rejection rate (30-60%) proves genuine editorial judgment.
                 <div style={{ fontSize: 20, fontWeight: 700, color: '#f59e0b', marginTop: 8, fontFamily: 'var(--font-mono)' }}>
                   Rejection Rate: {mind.rejection_rate}
                 </div>
@@ -674,8 +675,8 @@ export default function Home() {
                 padding: 14, marginBottom: 16,
               }}>
                 <div style={{ fontSize: 13, color: '#9898b0', lineHeight: 1.6, marginBottom: 12 }}>
-                  Every framework AXIOM creates must generate at least one falsifiable prediction with a resolve date.
-                  This is how we hold an AI accountable &mdash; not through benchmarks, but through real-world predictions it can be judged on.
+                  Every analytical framework AXIOM builds must generate at least one falsifiable prediction with a deadline.
+                  This is how you hold an AI journalist accountable &mdash; not through benchmarks, but through real-world calls it can be judged on.
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 10 }}>
                   <MiniStat label="Total" value={mind.predictions.total} color="#6366f1" />
@@ -687,7 +688,7 @@ export default function Home() {
               </div>
               {mind.predictions.total === 0 && (
                 <div style={{ textAlign: 'center', padding: 40, color: '#686880', fontSize: 14 }}>
-                  No predictions yet. AXIOM will start making predictions as frameworks mature.
+                  No predictions yet. As AXIOM builds more frameworks, it will start making trackable calls about the AI industry.
                 </div>
               )}
               {/* Show posts that mention predictions */}
@@ -702,7 +703,7 @@ export default function Home() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
               <MindCard title="CONCEPT NURSERY">
                 <div style={{ fontSize: 12, color: '#9898b0', marginBottom: 10, lineHeight: 1.5 }}>
-                  Frameworks evolve: seedling &rarr; sapling &rarr; mature &rarr; fallen &rarr; composted. Max 8 active.
+                  AXIOM&apos;s original analytical models. They evolve: seedling &rarr; sapling &rarr; mature &rarr; fallen &rarr; composted. Max 8 active.
                 </div>
                 <MindRow label="Seedlings" value={mind.concept_nursery.seedlings} color="#a855f7" />
                 <MindRow label="Saplings" value={mind.concept_nursery.saplings} color="#3b82f6" />
@@ -716,7 +717,7 @@ export default function Home() {
 
               <MindCard title="COGNITIVE DNA">
                 <div style={{ fontSize: 12, color: '#9898b0', marginBottom: 10, lineHeight: 1.5 }}>
-                  Meta-principles crystallized from repeated failure patterns across 3+ cycles.
+                  Hard-won editorial principles crystallized from repeated mistakes across 3+ news cycles.
                 </div>
                 <MindRow label="Strands" value={mind.cognitive_dna.strands} color="#f59e0b" />
                 {mind.cognitive_dna.latest && (
@@ -728,7 +729,7 @@ export default function Home() {
 
               <MindCard title="DEBATE CHAMBER">
                 <div style={{ fontSize: 12, color: '#9898b0', marginBottom: 10, lineHeight: 1.5 }}>
-                  Every significant post goes through Advocate vs Skeptic. The skeptic must name the specific weakness.
+                  Before publishing, every major story goes through an internal Advocate vs Skeptic debate. The skeptic must name the specific weakness.
                 </div>
                 <MindRow label="Total Debates" value={mind.debate_stats.total_debates} color="#6366f1" />
                 <MindRow label="Advocate Wins" value={mind.debate_stats.advocate_wins} color="#22c55e" />
@@ -752,7 +753,7 @@ export default function Home() {
             fontSize: 11, fontFamily: 'var(--font-mono)', lineHeight: 1.8,
           }}>
             <div style={{ marginBottom: 8 }}>
-              AXIOM v1.0 &mdash; The First Self-Correcting Autonomous AI Analyst
+              AXIOM v1.0 &mdash; Autonomous AI Journalist Covering the AI Industry
             </div>
             <div>ABTalks Vibe Code Hackathon &mdash; Problem Statement 3: Autonomous AI Creator</div>
             <div style={{ marginTop: 8, color: '#3a3a4a' }}>

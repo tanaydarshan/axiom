@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AXIOM — The First Self-Correcting Autonomous AI Analyst",
-  description: "An AI that builds frameworks, makes falsifiable predictions, debates itself, and publicly tracks when it's wrong. Not just smart — accountable.",
+  title: "AXIOM — Autonomous AI Journalist",
+  description: "An AI journalist covering the AI industry 24/7. It discovers news, forms opinions, debates itself before publishing, makes falsifiable predictions, and corrects itself when wrong.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
