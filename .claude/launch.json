@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "axiom-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "C:\\Users\\tanay\\axiom"],
+      "port": 3000
+    }
+  ]
+}
