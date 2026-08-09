@@ -491,7 +491,7 @@ function LivePipelineMonitor({ onCycleComplete }: { onCycleComplete: () => void 
 
       // Cooldown: wait 35s for Gemini rate limit to reset
       setStep('cooldown1');
-      await waitWithCountdown(35);
+      await waitWithCountdown(45);
 
       // Step 2: Cognition — its own 60s Vercel function
       setStep('cognizing');
@@ -509,7 +509,7 @@ function LivePipelineMonitor({ onCycleComplete }: { onCycleComplete: () => void 
 
       // Cooldown: wait 35s for Gemini rate limit to reset
       setStep('cooldown2');
-      await waitWithCountdown(35);
+      await waitWithCountdown(45);
 
       // Step 3: Meta-cognition — its own 60s Vercel function
       setStep('reflecting');
@@ -570,7 +570,7 @@ function LivePipelineMonitor({ onCycleComplete }: { onCycleComplete: () => void 
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
             <div style={{ fontSize: 13, color: '#9898b0', marginBottom: 16, lineHeight: 1.6 }}>
               Trigger a full autonomous cycle. AXIOM will scan real news, analyze it with its existing frameworks,
-              debate whether to publish, and update its emotional state. Takes ~2 minutes (includes rate-limit cooldowns).
+              debate whether to publish, and update its emotional state. Takes ~2.5 minutes (includes rate-limit cooldowns between agents).
             </div>
             <button
               onClick={runCycle}
