@@ -380,14 +380,14 @@ function computeNurseryCounts(nursery: Framework[]): ConceptNursery {
 function computePredictionStats(predictions: Prediction[]) {
   const confirmed = predictions.filter(p => p.status === 'confirmed').length;
   const failed = predictions.filter(p => p.status === 'failed').length;
-  const pending = predictions.filter(p => p.status === 'pending').length;
+  const pending = predictions.filter(p => p.status === 'pending' || p.status === 'tracking').length;
   const resolved = confirmed + failed;
   const accuracy = resolved > 0 ? `${Math.round((confirmed / resolved) * 100)}%` : 'N/A';
 
   let calibration = 'N/A';
   if (resolved > 0) {
     const avgConfidence = predictions
-      .filter(p => p.status !== 'pending')
+      .filter(p => p.status !== 'pending' && p.status !== 'tracking')
       .reduce((sum, p) => sum + p.confidence, 0) / resolved;
     const actualAccuracy = (confirmed / resolved) * 100;
     const diff = Math.round(avgConfidence - actualAccuracy);
