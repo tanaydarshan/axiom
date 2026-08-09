@@ -164,6 +164,93 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 // ============================================================
+// NEURAL NETWORK BACKGROUND
+// ============================================================
+
+function NeuralBackground() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animId: number;
+    const nodes: { x: number; y: number; vx: number; vy: number }[] = [];
+    const count = 40;
+
+    const resize = () => {
+      canvas.width = canvas.offsetWidth * 2;
+      canvas.height = canvas.offsetHeight * 2;
+    };
+    resize();
+
+    for (let i = 0; i < count; i++) {
+      nodes.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 0.8,
+        vy: (Math.random() - 0.5) * 0.8,
+      });
+    }
+
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const maxDist = 200;
+
+      for (let i = 0; i < nodes.length; i++) {
+        const a = nodes[i];
+        a.x += a.vx;
+        a.y += a.vy;
+        if (a.x < 0 || a.x > canvas.width) a.vx *= -1;
+        if (a.y < 0 || a.y > canvas.height) a.vy *= -1;
+
+        for (let j = i + 1; j < nodes.length; j++) {
+          const b = nodes[j];
+          const dx = a.x - b.x;
+          const dy = a.y - b.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < maxDist) {
+            const alpha = (1 - dist / maxDist) * 0.15;
+            ctx.strokeStyle = `rgba(0, 212, 255, ${alpha})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+          }
+        }
+
+        ctx.fillStyle = 'rgba(0, 212, 255, 0.3)';
+        ctx.beginPath();
+        ctx.arc(a.x, a.y, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      animId = requestAnimationFrame(draw);
+    };
+
+    draw();
+    window.addEventListener('resize', resize);
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener('resize', resize);
+    };
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{
+        position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+        pointerEvents: 'none', opacity: 0.6,
+      }}
+    />
+  );
+}
+
+// ============================================================
 // SCROLL ANIMATION
 // ============================================================
 
@@ -320,7 +407,7 @@ function StatCard({ label, value, color, sub }: { label: string; value: string; 
   return (
     <div style={{ background: '#16161f', border: '1px solid #2a2a3a', borderRadius: 10, padding: '10px 14px', textAlign: 'center' }}>
       <div style={{ fontSize: 9, fontWeight: 700, color: '#505068', letterSpacing: 1.5, marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 20, fontWeight: 700, color, fontFamily: 'var(--font-mono)' }}>{value}</div>
+      <div style={{ fontSize: value.length > 8 ? 16 : 20, fontWeight: 700, color, fontFamily: 'var(--font-mono)', wordBreak: 'break-word' }}>{value}</div>
       {sub && <div style={{ fontSize: 9, color: '#505068', marginTop: 2 }}>{sub}</div>}
     </div>
   );
@@ -357,7 +444,7 @@ function PostCard({ post, highlight }: { post: Post; highlight?: boolean }) {
           <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: typeInfo.color, background: `${typeInfo.color}15`, padding: '2px 8px', borderRadius: 4, fontFamily: 'var(--font-mono)' }}>
             {typeInfo.icon} {typeInfo.label}
           </span>
-          <span style={{ fontSize: 11, color: stageColor, fontFamily: 'var(--font-mono)' }}>{post.cognitive_stage || 'infancy'}</span>
+          <span style={{ fontSize: 10, color: stageColor, fontFamily: 'var(--font-mono)' }}>{STAGE_LABELS[post.cognitive_stage || 'infancy'] || post.cognitive_stage || 'infancy'}</span>
           <span style={{ fontSize: 11, color: '#505068', fontFamily: 'var(--font-mono)' }}>{post.id}</span>
           <span style={{ fontSize: 11, color: '#505068', marginLeft: 'auto' }}><TimeAgo date={post.createdAt} /></span>
         </div>
@@ -429,50 +516,38 @@ function PostCard({ post, highlight }: { post: Post; highlight?: boolean }) {
 }
 
 // ============================================================
-// MAIN PAGE
+// LIVE PIPELINE — WATCH AXIOM THINK IN REAL TIME
 // ============================================================
-
-// ============================================================
-// LIVE PIPELINE TRIGGER
-// ============================================================
-
-interface TriggerResult {
-  cycle: number;
-  cognitive_stage: string;
-  age_hours: number;
-  discovery?: { status: string; findings_length: number; sources_count: number; sources?: string[] };
-  cognition?: { status: string; decision: string; post_type?: string; post_preview?: string; rejection_topic?: string; debate?: { advocate: string; skeptic: string; resolution: string }; new_frameworks: number; new_predictions: number };
-  metacognition?: { status: string; emotions?: CognitiveEmotions; blind_spots?: string[]; cognitive_health?: string; curiosity_focus?: string[] };
-}
 
 type PipelineStep = 'idle' | 'discovering' | 'cognizing' | 'reflecting' | 'complete' | 'error';
 
-function LivePipelineMonitor({ onCycleComplete }: { onCycleComplete: () => void }) {
+function LivePipeline({ onCycleComplete }: { onCycleComplete: () => void }) {
   const [step, setStep] = useState<PipelineStep>('idle');
-  const [result, setResult] = useState<TriggerResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  const [findings, setFindings] = useState<string | null>(null);
+  const [decision, setDecision] = useState<string | null>(null);
+  const [health, setHealth] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const runCycle = async () => {
     setStep('discovering');
-    setResult(null);
     setError(null);
     setElapsed(0);
-
+    setFindings(null);
+    setDecision(null);
+    setHealth(null);
     timerRef.current = setInterval(() => setElapsed(e => e + 100), 100);
 
     try {
-      // Step 1: Discovery
       const discoverRes = await fetch('/api/agent/trigger?step=discover', { method: 'POST' });
       if (!discoverRes.ok) {
         const err = await discoverRes.json();
-        throw new Error(err.error || `Discovery failed: HTTP ${discoverRes.status}`);
+        throw new Error(err.error || `Discovery failed: ${discoverRes.status}`);
       }
       const discoverData = await discoverRes.json();
-      setResult(prev => ({ ...prev, ...discoverData } as TriggerResult));
+      setFindings(`${discoverData.discovery?.sources_count || 0} sources scanned`);
 
-      // Step 2: Cognition
       setStep('cognizing');
       const cognizeRes = await fetch('/api/agent/trigger?step=cognize', {
         method: 'POST',
@@ -481,12 +556,11 @@ function LivePipelineMonitor({ onCycleComplete }: { onCycleComplete: () => void 
       });
       if (!cognizeRes.ok) {
         const err = await cognizeRes.json();
-        throw new Error(err.error || `Cognition failed: HTTP ${cognizeRes.status}`);
+        throw new Error(err.error || `Cognition failed: ${cognizeRes.status}`);
       }
       const cognizeData = await cognizeRes.json();
-      setResult(prev => ({ ...prev, cognition: cognizeData.cognition } as TriggerResult));
+      setDecision(cognizeData.cognition?.decision?.toUpperCase() || 'ANALYZED');
 
-      // Step 3: Meta-cognition
       setStep('reflecting');
       const reflectRes = await fetch('/api/agent/trigger?step=reflect', {
         method: 'POST',
@@ -495,10 +569,10 @@ function LivePipelineMonitor({ onCycleComplete }: { onCycleComplete: () => void 
       });
       if (!reflectRes.ok) {
         const err = await reflectRes.json();
-        throw new Error(err.error || `Metacognition failed: HTTP ${reflectRes.status}`);
+        throw new Error(err.error || `Metacognition failed: ${reflectRes.status}`);
       }
       const reflectData = await reflectRes.json();
-      setResult(prev => ({ ...prev, metacognition: reflectData.metacognition } as TriggerResult));
+      setHealth(reflectData.metacognition?.cognitive_health || 'ASSESSED');
 
       setStep('complete');
       if (timerRef.current) clearInterval(timerRef.current);
@@ -514,17 +588,13 @@ function LivePipelineMonitor({ onCycleComplete }: { onCycleComplete: () => void 
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
-  const formatElapsed = (ms: number) => {
-    const s = Math.floor(ms / 1000);
-    return `${s}s`;
-  };
+  const secs = Math.floor(elapsed / 1000);
 
-  const steps: { key: PipelineStep; label: string; agent: string; color: string; icon: string }[] = [
-    { key: 'discovering', label: 'DISCOVERY AGENT', agent: 'Scanning Google News RSS for AI stories...', color: '#3b82f6', icon: '01' },
-    { key: 'cognizing', label: 'COGNITION AGENT', agent: 'Analyzing, debating, deciding...', color: '#a855f7', icon: '02' },
-    { key: 'reflecting', label: 'META-COGNITION AGENT', agent: 'Scoring emotions, detecting blind spots...', color: '#ec4899', icon: '03' },
+  const steps = [
+    { key: 'discovering' as const, label: 'DISCOVER', color: '#3b82f6', detail: findings },
+    { key: 'cognizing' as const, label: 'COGNIZE', color: '#a855f7', detail: decision ? `Decision: ${decision}` : null },
+    { key: 'reflecting' as const, label: 'REFLECT', color: '#ec4899', detail: health ? `Health: ${health}` : null },
   ];
-
   const stepOrder: PipelineStep[] = ['discovering', 'cognizing', 'reflecting', 'complete'];
   const currentIdx = stepOrder.indexOf(step);
 
@@ -533,77 +603,63 @@ function LivePipelineMonitor({ onCycleComplete }: { onCycleComplete: () => void 
       <SectionHeader>LIVE PIPELINE &mdash; WATCH AXIOM THINK IN REAL TIME</SectionHeader>
       <Card>
         {step === 'idle' && (
-          <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <div style={{ fontSize: 13, color: '#9898b0', marginBottom: 16, lineHeight: 1.6 }}>
-              Trigger a full autonomous cycle. AXIOM will scan real news, analyze it with its existing frameworks,
-              debate whether to publish, and update its emotional state. Takes ~15&ndash;30 seconds.
+          <div style={{ textAlign: 'center', padding: '24px 0' }}>
+            <div style={{ fontSize: 13, color: '#9898b0', marginBottom: 16, lineHeight: 1.6, maxWidth: 500, margin: '0 auto 16px' }}>
+              Trigger a full autonomous cycle: scan real news, analyze with AI, debate whether to publish, update emotional state.
             </div>
             <button
               onClick={runCycle}
               style={{
                 background: 'linear-gradient(135deg, #00d4ff, #a855f7)', border: 'none', borderRadius: 8,
-                padding: '12px 32px', fontSize: 14, fontWeight: 700, color: '#fff', cursor: 'pointer',
-                fontFamily: 'var(--font-mono)', letterSpacing: 1, transition: 'transform 0.15s, box-shadow 0.15s',
-                boxShadow: '0 0 20px #00d4ff30',
+                padding: '14px 36px', fontSize: 14, fontWeight: 700, color: '#fff', cursor: 'pointer',
+                fontFamily: 'var(--font-mono)', letterSpacing: 1.5, boxShadow: '0 0 30px #00d4ff30',
               }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.03)'; e.currentTarget.style.boxShadow = '0 0 30px #00d4ff50'; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 0 20px #00d4ff30'; }}
             >
-              RUN CYCLE NOW
+              &#9654; RUN CYCLE NOW
             </button>
           </div>
         )}
 
         {step !== 'idle' && (
-          <div>
-            {/* Pipeline steps */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div style={{ padding: '8px 0' }}>
+            <style>{`@keyframes pipelinePulse { 0%,100% { box-shadow: 0 0 8px var(--c); } 50% { box-shadow: 0 0 20px var(--c); } }`}</style>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0, marginBottom: 16 }}>
               {steps.map((s, i) => {
                 const sIdx = stepOrder.indexOf(s.key);
                 const isActive = step === s.key;
                 const isDone = currentIdx > sIdx;
-                const isPending = currentIdx < sIdx;
                 return (
-                  <div key={s.key} style={{ display: 'flex', alignItems: 'center', flex: i < 2 ? 1 : 0 }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 100 }}>
+                  <div key={s.key} style={{ display: 'flex', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 90 }}>
                       <div style={{
-                        width: 40, height: 40, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)',
-                        background: isDone ? s.color : isActive ? `${s.color}30` : '#1a1a25',
+                        // @ts-expect-error CSS custom property
+                        '--c': s.color,
+                        width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 16, fontWeight: 800, fontFamily: 'var(--font-mono)',
+                        background: isDone ? s.color : isActive ? `${s.color}20` : '#1a1a25',
                         color: isDone ? '#fff' : isActive ? s.color : '#505068',
                         border: `2px solid ${isDone || isActive ? s.color : '#2a2a3a'}`,
-                        boxShadow: isActive ? `0 0 15px ${s.color}40` : 'none',
-                        transition: 'all 0.4s ease',
+                        animation: isActive ? 'pipelinePulse 1.5s ease infinite' : 'none',
+                        transition: 'all 0.3s ease',
                       }}>
-                        {isDone ? '✓' : s.icon}
+                        {isDone ? '✓' : String(i + 1)}
                       </div>
-                      <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, color: isDone || isActive ? s.color : '#505068', marginTop: 6, fontFamily: 'var(--font-mono)', textAlign: 'center' }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: isDone || isActive ? s.color : '#505068', marginTop: 6, fontFamily: 'var(--font-mono)' }}>
                         {s.label}
                       </div>
+                      {isDone && s.detail && (
+                        <div style={{ fontSize: 10, color: '#22c55e', marginTop: 3 }}>{s.detail}</div>
+                      )}
                       {isActive && (
-                        <div style={{ fontSize: 10, color: '#9898b0', marginTop: 4, textAlign: 'center' }}>
-                          <style>{`@keyframes dotPulse { 0%,80%,100% { opacity:0; } 40% { opacity:1; } }
-                          .dot1 { animation: dotPulse 1.4s infinite; } .dot2 { animation: dotPulse 1.4s infinite 0.2s; } .dot3 { animation: dotPulse 1.4s infinite 0.4s; }`}</style>
-                          {s.agent.replace('...', '')}<span className="dot1">.</span><span className="dot2">.</span><span className="dot3">.</span>
-                        </div>
-                      )}
-                      {isDone && result && s.key === 'discovering' && result.discovery && (
-                        <div style={{ fontSize: 10, color: '#22c55e', marginTop: 4 }}>{result.discovery.sources_count} sources found</div>
-                      )}
-                      {isDone && result && s.key === 'cognizing' && result.cognition && (
-                        <div style={{ fontSize: 10, color: result.cognition.decision === 'publish' ? '#22c55e' : '#f59e0b', marginTop: 4 }}>
-                          Decision: {result.cognition.decision.toUpperCase()}
-                        </div>
-                      )}
-                      {isDone && result && s.key === 'reflecting' && result.metacognition?.emotions && (
-                        <div style={{ fontSize: 10, color: '#ec4899', marginTop: 4 }}>
-                          Health: {result.metacognition.cognitive_health || 'scored'}
+                        <div style={{ fontSize: 10, color: '#9898b0', marginTop: 3 }}>
+                          <style>{`@keyframes dots { 0%{content:'.'} 33%{content:'..'} 66%{content:'...'}}`}</style>
+                          Processing...
                         </div>
                       )}
                     </div>
                     {i < 2 && (
                       <div style={{
-                        flex: 1, height: 2, margin: '0 8px', marginBottom: 30,
+                        width: 60, height: 2, margin: '0 4px', marginBottom: 30,
                         background: isDone && currentIdx > sIdx + 1 ? `linear-gradient(90deg, ${s.color}, ${steps[i + 1].color})` : '#2a2a3a',
                         transition: 'background 0.4s ease',
                       }} />
@@ -613,92 +669,30 @@ function LivePipelineMonitor({ onCycleComplete }: { onCycleComplete: () => void 
               })}
             </div>
 
-            {/* Timer */}
             {step !== 'complete' && step !== 'error' && (
               <div style={{ textAlign: 'center', fontSize: 12, color: '#505068', fontFamily: 'var(--font-mono)' }}>
-                Elapsed: {formatElapsed(elapsed)} — 3 AI agents running sequentially
+                {secs}s elapsed &mdash; 3 AI agents running sequentially
               </div>
             )}
 
-            {/* Error */}
             {step === 'error' && (
-              <div style={{ textAlign: 'center', padding: 16 }}>
+              <div style={{ textAlign: 'center', padding: 12 }}>
                 <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 8 }}>
-                  {error?.includes('429') || error?.includes('quota') || error?.includes('RESOURCE_EXHAUSTED')
-                    ? 'API rate limit reached. Try again in a few seconds.'
-                    : error?.includes('Rate limited')
-                    ? 'Please wait 30 seconds between triggers.'
-                    : `Pipeline error: ${(error || '').substring(0, 120)}`}
-                </div>
-                <div style={{ fontSize: 11, color: '#505068', marginBottom: 12 }}>
-                  {error?.includes('429') || error?.includes('quota') ? 'Try again in a few minutes, or after the daily quota resets.' : 'Check server logs for details.'}
+                  {error?.includes('Rate limited') ? 'Please wait 30s between triggers.' : `Error: ${(error || '').substring(0, 120)}`}
                 </div>
                 <button onClick={() => setStep('idle')} style={{ background: '#2a2a3a', border: 'none', borderRadius: 6, padding: '8px 20px', color: '#9898b0', cursor: 'pointer', fontSize: 12, fontFamily: 'var(--font-mono)' }}>Try Again</button>
               </div>
             )}
 
-            {/* Results */}
-            {step === 'complete' && result && (
-              <div style={{ borderTop: '1px solid #2a2a3a', paddingTop: 16 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#22c55e', letterSpacing: 1, marginBottom: 12 }}>
-                  CYCLE {result.cycle} COMPLETE — {formatElapsed(elapsed)}
+            {step === 'complete' && (
+              <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#22c55e', marginBottom: 8 }}>
+                  &#10003; CYCLE COMPLETE IN {secs}s
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 12 }}>
-                  {/* Discovery result */}
-                  <div style={{ background: '#1a1a25', borderRadius: 8, padding: 12, border: '1px solid #3b82f620' }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: '#3b82f6', letterSpacing: 1, marginBottom: 6 }}>DISCOVERY</div>
-                    <div style={{ fontSize: 12, color: '#9898b0' }}>
-                      Scanned <span style={{ color: '#3b82f6', fontWeight: 600 }}>{result.discovery?.sources_count || 0}</span> sources,
-                      collected <span style={{ color: '#3b82f6', fontWeight: 600 }}>{result.discovery?.findings_length || 0}</span> chars of findings
-                    </div>
-                  </div>
-                  {/* Cognition result */}
-                  <div style={{ background: '#1a1a25', borderRadius: 8, padding: 12, border: '1px solid #a855f720' }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: '#a855f7', letterSpacing: 1, marginBottom: 6 }}>COGNITION</div>
-                    <div style={{ fontSize: 12, color: '#9898b0' }}>
-                      Decision: <span style={{ color: result.cognition?.decision === 'publish' ? '#22c55e' : '#f59e0b', fontWeight: 600 }}>{(result.cognition?.decision || 'unknown').toUpperCase()}</span>
-                      {result.cognition?.post_type && <span> ({result.cognition.post_type})</span>}
-                    </div>
-                    {result.cognition?.debate && (
-                      <div style={{ fontSize: 11, color: '#686880', marginTop: 6 }}>
-                        <div><span style={{ color: '#22c55e' }}>Advocate:</span> {result.cognition.debate.advocate.substring(0, 80)}...</div>
-                        <div><span style={{ color: '#ef4444' }}>Skeptic:</span> {result.cognition.debate.skeptic.substring(0, 80)}...</div>
-                      </div>
-                    )}
-                    {result.cognition?.post_preview && (
-                      <div style={{ fontSize: 11, color: '#9898b0', marginTop: 6, fontStyle: 'italic' }}>
-                        &quot;{result.cognition.post_preview.substring(0, 120)}...&quot;
-                      </div>
-                    )}
-                    {(result.cognition?.new_frameworks || 0) > 0 && <div style={{ fontSize: 11, color: '#22c55e', marginTop: 4 }}>+{result.cognition?.new_frameworks} new framework(s)</div>}
-                    {(result.cognition?.new_predictions || 0) > 0 && <div style={{ fontSize: 11, color: '#f59e0b', marginTop: 2 }}>+{result.cognition?.new_predictions} new prediction(s)</div>}
-                  </div>
-                  {/* Meta-cognition result */}
-                  <div style={{ background: '#1a1a25', borderRadius: 8, padding: 12, border: '1px solid #ec489920' }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: '#ec4899', letterSpacing: 1, marginBottom: 6 }}>META-COGNITION</div>
-                    {result.metacognition?.emotions && (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px', marginBottom: 6 }}>
-                        {Object.entries(result.metacognition.emotions).map(([k, v]) => (
-                          <div key={k} style={{ fontSize: 11, display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: '#9898b0', textTransform: 'capitalize' }}>{k}</span>
-                            <span style={{ color: '#ec4899', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{v}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {result.metacognition?.blind_spots && result.metacognition.blind_spots.length > 0 && (
-                      <div style={{ fontSize: 10, color: '#f59e0b', marginTop: 4 }}>
-                        Blind spots: {result.metacognition.blind_spots.slice(0, 2).join(', ')}
-                      </div>
-                    )}
-                    <div style={{ fontSize: 11, color: '#9898b0', marginTop: 4 }}>
-                      Health: <span style={{ color: result.metacognition?.cognitive_health?.includes('GOOD') ? '#22c55e' : '#f59e0b' }}>{result.metacognition?.cognitive_health || 'assessed'}</span>
-                    </div>
-                  </div>
+                <div style={{ fontSize: 12, color: '#9898b0', marginBottom: 12 }}>
+                  {findings} &middot; Decision: {decision} &middot; Health: {health}
                 </div>
-                <div style={{ textAlign: 'center', marginTop: 16 }}>
-                  <button onClick={() => setStep('idle')} style={{ background: '#2a2a3a', border: 'none', borderRadius: 6, padding: '8px 20px', color: '#9898b0', cursor: 'pointer', fontSize: 12, fontFamily: 'var(--font-mono)' }}>Run Another Cycle</button>
-                </div>
+                <button onClick={() => setStep('idle')} style={{ background: '#2a2a3a', border: 'none', borderRadius: 6, padding: '8px 20px', color: '#9898b0', cursor: 'pointer', fontSize: 12, fontFamily: 'var(--font-mono)' }}>Run Another Cycle</button>
               </div>
             )}
           </div>
@@ -898,7 +892,8 @@ export default function Home() {
       {/* ============================================================ */}
       {/* SCENE 1: HERO + LIVE PULSE */}
       {/* ============================================================ */}
-      <header style={{ marginBottom: 40, textAlign: 'center', position: 'relative' }}>
+      <header style={{ marginBottom: 40, textAlign: 'center', position: 'relative', padding: '20px 0', overflow: 'hidden', borderRadius: 16 }}>
+        <NeuralBackground />
         {/* Live Pulse */}
         {data && (
           <div style={{ position: 'absolute', top: 0, right: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -962,48 +957,14 @@ export default function Home() {
           </div></FadeIn>
 
           {/* ============================================================ */}
-          {/* SCENE 2: HOW AXIOM WORKS — PIPELINE DIAGRAM */}
+          {/* LIVE PIPELINE — THE WOW MOMENT */}
           {/* ============================================================ */}
-          <FadeIn delay={0.1}><section style={{ marginBottom: 32 }}>
-            <SectionHeader>HOW AXIOM WORKS &mdash; EVERY 35 MINUTES, AUTONOMOUSLY</SectionHeader>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 0, position: 'relative' }}>
-              {[
-                { step: '01', title: 'DISCOVER', color: '#3b82f6', desc: 'Scans AI news via Google News RSS. Finds what\'s happening right now across multiple sources.', detail: `${uniqueSources} unique sources scanned` },
-                { step: '02', title: 'COGNITION', color: '#a855f7', desc: 'Analyzes findings against existing frameworks. Decides: publish or reject? Invents new analytical models.', detail: `${mind.concept_nursery.total_concepts_ever_created} frameworks created` },
-                { step: '03', title: 'META-COGNITION', color: '#ec4899', desc: 'Checks its own reasoning. Assigns emotion scores via measurable proxies. Flags blind spots.', detail: `${mind.total_cycles} self-checks completed` },
-              ].map((s, i) => (
-                <div key={s.step} style={{ display: 'flex', alignItems: 'stretch' }}>
-                  <div style={{
-                    background: '#16161f', border: `1px solid ${s.color}30`, borderRadius: 12, padding: 16,
-                    flex: 1, position: 'relative', transition: 'border-color 0.2s',
-                  }}>
-                    <div style={{ fontSize: 28, fontWeight: 800, color: `${s.color}20`, fontFamily: 'var(--font-mono)', position: 'absolute', top: 10, right: 14 }}>{s.step}</div>
-                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, color: s.color, marginBottom: 8, fontFamily: 'var(--font-mono)' }}>{s.title}</div>
-                    <div style={{ fontSize: 12, color: '#9898b0', lineHeight: 1.5, marginBottom: 10 }}>{s.desc}</div>
-                    <div style={{ fontSize: 11, color: s.color, fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{s.detail}</div>
-                  </div>
-                  {i < 2 && (
-                    <div style={{ display: 'flex', alignItems: 'center', padding: '0 2px', flexShrink: 0 }}>
-                      <svg width="28" height="28" viewBox="0 0 28 28">
-                        <defs><linearGradient id={`arrow-${i}`} x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor={s.color} stopOpacity="0.6" /><stop offset="100%" stopColor={[{ step: '01', title: 'DISCOVER', color: '#3b82f6', desc: '', detail: '' }, { step: '02', title: 'COGNITION', color: '#a855f7', desc: '', detail: '' }, { step: '03', title: 'META-COGNITION', color: '#ec4899', desc: '', detail: '' }][i + 1].color} stopOpacity="0.6" /></linearGradient></defs>
-                        <path d="M6 14 L18 14 M14 9 L19 14 L14 19" fill="none" stroke={`url(#arrow-${i})`} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </section></FadeIn>
+          <FadeIn delay={0.05}><LivePipeline onCycleComplete={fetchFeed} /></FadeIn>
 
           {/* ============================================================ */}
           {/* SYSTEM ARCHITECTURE */}
           {/* ============================================================ */}
-          <FadeIn delay={0.15}><SystemArchitecture /></FadeIn>
-
-          {/* ============================================================ */}
-          {/* LIVE PIPELINE TRIGGER */}
-          {/* ============================================================ */}
-          <FadeIn delay={0.2}><LivePipelineMonitor onCycleComplete={fetchFeed} /></FadeIn>
+          <FadeIn delay={0.1}><SystemArchitecture /></FadeIn>
 
           {/* ============================================================ */}
           {/* PIPELINE X-RAY — LATEST CYCLE */}
