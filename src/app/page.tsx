@@ -516,183 +516,172 @@ function PostCard({ post, highlight }: { post: Post; highlight?: boolean }) {
 }
 
 // ============================================================
-// LIVE PIPELINE — WATCH AXIOM THINK IN REAL TIME
+// AUTONOMOUS CYCLE REPLAY — Animated pipeline using real data
 // ============================================================
 
-type PipelineStep = 'idle' | 'discovering' | 'cognizing' | 'reflecting' | 'complete' | 'error';
+function AutonomousCycleReplay({ latestPost, mind, uniqueSources }: {
+  latestPost: Post | null;
+  mind: MindState;
+  uniqueSources: number;
+}) {
+  const [phase, setPhase] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [typedText, setTypedText] = useState('');
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-function LivePipeline({ onCycleComplete }: { onCycleComplete: () => void }) {
-  const [step, setStep] = useState<PipelineStep>('idle');
-  const [error, setError] = useState<string | null>(null);
-  const [elapsed, setElapsed] = useState(0);
-  const [findings, setFindings] = useState<string | null>(null);
-  const [decision, setDecision] = useState<string | null>(null);
-  const [health, setHealth] = useState<string | null>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const sourceCount = uniqueSources || 0;
+  const postText = latestPost?.text || 'Analyzing patterns in AI development...';
+  const advocateText = latestPost?.debate_log?.advocate_position || latestPost?.debate_log?.advocate || 'This finding is significant because it reveals a shift in the industry.';
+  const skepticText = latestPost?.debate_log?.skeptic_position || latestPost?.debate_log?.skeptic || 'We need more sources to verify this claim before publishing.';
+  const resolutionText = latestPost?.debate_log?.resolution || 'Published after editorial review with high confidence.';
+  const frameworksUsed = latestPost?.frameworks_used || [];
 
-  const runCycle = async () => {
-    setStep('discovering');
-    setError(null);
-    setElapsed(0);
-    setFindings(null);
-    setDecision(null);
-    setHealth(null);
-    timerRef.current = setInterval(() => setElapsed(e => e + 100), 100);
+  const phases = useMemo(() => [
+    { label: 'SCANNING NEWS', color: '#3b82f6', icon: '01', detail: `Scanning ${sourceCount} sources via Google News RSS...`, duration: 2500 },
+    { label: 'DISCOVERIES FOUND', color: '#3b82f6', icon: '01', detail: `${sourceCount} unique sources collected. Extracting key findings...`, duration: 2000 },
+    { label: 'ADVOCATE ARGUES', color: '#22c55e', icon: '02', detail: advocateText.substring(0, 150), duration: 3000 },
+    { label: 'SKEPTIC CHALLENGES', color: '#ef4444', icon: '02', detail: skepticText.substring(0, 150), duration: 3000 },
+    { label: 'EDITORIAL VERDICT', color: '#a855f7', icon: '02', detail: resolutionText.substring(0, 150), duration: 2500 },
+    { label: 'EMOTION CALIBRATION', color: '#ec4899', icon: '03', detail: `Curiosity: ${mind.cognitive_emotions.curiosity} | Excitement: ${mind.cognitive_emotions.excitement} | Anxiety: ${mind.cognitive_emotions.anxiety} | Confidence: ${mind.cognitive_emotions.confidence}`, duration: 2000 },
+    { label: 'COGNITIVE HEALTH CHECK', color: '#ec4899', icon: '03', detail: `Status: ${mind.cognitive_health || 'ASSESSED'} | Stage: ${STAGE_LABELS[mind.cognitive_stage] || mind.cognitive_stage}`, duration: 2000 },
+    { label: 'CYCLE COMPLETE', color: '#22c55e', icon: '✓', detail: `Published ${mind.total_cycles > 0 ? mind.total_cycles : 0} posts. ${mind.concept_nursery.total_concepts_ever_created} frameworks built. ${mind.predictions.total} predictions tracked.`, duration: 3000 },
+  ], [sourceCount, advocateText, skepticText, resolutionText, mind, postText]);
 
-    try {
-      const discoverRes = await fetch('/api/agent/trigger?step=discover', { method: 'POST' });
-      if (!discoverRes.ok) {
-        const err = await discoverRes.json();
-        throw new Error(err.error || `Discovery failed: ${discoverRes.status}`);
-      }
-      const discoverData = await discoverRes.json();
-      setFindings(`${discoverData.discovery?.sources_count || 0} sources scanned`);
-
-      setStep('cognizing');
-      const cognizeRes = await fetch('/api/agent/trigger?step=cognize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ discoveryResult: discoverData.discovery }),
-      });
-      if (!cognizeRes.ok) {
-        const err = await cognizeRes.json();
-        throw new Error(err.error || `Cognition failed: ${cognizeRes.status}`);
-      }
-      const cognizeData = await cognizeRes.json();
-      setDecision(cognizeData.cognition?.decision?.toUpperCase() || 'ANALYZED');
-
-      setStep('reflecting');
-      const reflectRes = await fetch('/api/agent/trigger?step=reflect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cognitionResult: cognizeData.cognitionRaw }),
-      });
-      if (!reflectRes.ok) {
-        const err = await reflectRes.json();
-        throw new Error(err.error || `Metacognition failed: ${reflectRes.status}`);
-      }
-      const reflectData = await reflectRes.json();
-      setHealth(reflectData.metacognition?.cognitive_health || 'ASSESSED');
-
-      setStep('complete');
-      if (timerRef.current) clearInterval(timerRef.current);
-      onCycleComplete();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed');
-      setStep('error');
-      if (timerRef.current) clearInterval(timerRef.current);
-    }
-  };
-
-  useEffect(() => {
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  const startReplay = useCallback(() => {
+    setIsPlaying(true);
+    setPhase(0);
+    setTypedText('');
   }, []);
 
-  const secs = Math.floor(elapsed / 1000);
+  useEffect(() => {
+    if (!isPlaying) return;
+    if (phase >= phases.length) {
+      setIsPlaying(false);
+      return;
+    }
 
-  const steps = [
-    { key: 'discovering' as const, label: 'DISCOVER', color: '#3b82f6', detail: findings },
-    { key: 'cognizing' as const, label: 'COGNIZE', color: '#a855f7', detail: decision ? `Decision: ${decision}` : null },
-    { key: 'reflecting' as const, label: 'REFLECT', color: '#ec4899', detail: health ? `Health: ${health}` : null },
-  ];
-  const stepOrder: PipelineStep[] = ['discovering', 'cognizing', 'reflecting', 'complete'];
-  const currentIdx = stepOrder.indexOf(step);
+    const text = phases[phase].detail;
+    let charIdx = 0;
+    setTypedText('');
+
+    const typeChar = () => {
+      if (charIdx < text.length) {
+        charIdx++;
+        setTypedText(text.substring(0, charIdx));
+        timerRef.current = setTimeout(typeChar, 12);
+      } else {
+        timerRef.current = setTimeout(() => setPhase(p => p + 1), 1200);
+      }
+    };
+    timerRef.current = setTimeout(typeChar, 300);
+
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [isPlaying, phase, phases]);
+
+  const currentPhase = phases[phase] || phases[phases.length - 1];
+  const agentNum = currentPhase?.icon || '01';
+  const agentNames: Record<string, string> = { '01': 'DISCOVERY AGENT', '02': 'COGNITION AGENT', '03': 'META-COGNITION AGENT', '✓': 'PIPELINE COMPLETE' };
 
   return (
     <section style={{ marginBottom: 32 }}>
-      <SectionHeader>LIVE PIPELINE &mdash; WATCH AXIOM THINK IN REAL TIME</SectionHeader>
+      <SectionHeader>INSIDE AXIOM&apos;S MIND &mdash; AUTONOMOUS CYCLE REPLAY</SectionHeader>
       <Card>
-        {step === 'idle' && (
-          <div style={{ textAlign: 'center', padding: '24px 0' }}>
-            <div style={{ fontSize: 13, color: '#9898b0', marginBottom: 16, lineHeight: 1.6, maxWidth: 500, margin: '0 auto 16px' }}>
-              Trigger a full autonomous cycle: scan real news, analyze with AI, debate whether to publish, update emotional state.
+        {!isPlaying && phase === 0 && (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <div style={{ fontSize: 13, color: '#9898b0', marginBottom: 16, lineHeight: 1.6, maxWidth: 520, margin: '0 auto 16px' }}>
+              Watch a replay of AXIOM&apos;s latest autonomous cycle &mdash; how it scanned real news,
+              debated with itself, and decided what to publish. Using real data from its memory.
             </div>
             <button
-              onClick={runCycle}
+              onClick={startReplay}
               style={{
                 background: 'linear-gradient(135deg, #00d4ff, #a855f7)', border: 'none', borderRadius: 8,
                 padding: '14px 36px', fontSize: 14, fontWeight: 700, color: '#fff', cursor: 'pointer',
                 fontFamily: 'var(--font-mono)', letterSpacing: 1.5, boxShadow: '0 0 30px #00d4ff30',
+                transition: 'transform 0.15s',
               }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.03)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
             >
-              &#9654; RUN CYCLE NOW
+              &#9654; REPLAY LATEST CYCLE
             </button>
           </div>
         )}
 
-        {step !== 'idle' && (
-          <div style={{ padding: '8px 0' }}>
-            <style>{`@keyframes pipelinePulse { 0%,100% { box-shadow: 0 0 8px var(--c); } 50% { box-shadow: 0 0 20px var(--c); } }`}</style>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0, marginBottom: 16 }}>
-              {steps.map((s, i) => {
-                const sIdx = stepOrder.indexOf(s.key);
-                const isActive = step === s.key;
-                const isDone = currentIdx > sIdx;
-                return (
-                  <div key={s.key} style={{ display: 'flex', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 90 }}>
-                      <div style={{
-                        // @ts-expect-error CSS custom property
-                        '--c': s.color,
-                        width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 16, fontWeight: 800, fontFamily: 'var(--font-mono)',
-                        background: isDone ? s.color : isActive ? `${s.color}20` : '#1a1a25',
-                        color: isDone ? '#fff' : isActive ? s.color : '#505068',
-                        border: `2px solid ${isDone || isActive ? s.color : '#2a2a3a'}`,
-                        animation: isActive ? 'pipelinePulse 1.5s ease infinite' : 'none',
-                        transition: 'all 0.3s ease',
-                      }}>
-                        {isDone ? '✓' : String(i + 1)}
-                      </div>
-                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: isDone || isActive ? s.color : '#505068', marginTop: 6, fontFamily: 'var(--font-mono)' }}>
-                        {s.label}
-                      </div>
-                      {isDone && s.detail && (
-                        <div style={{ fontSize: 10, color: '#22c55e', marginTop: 3 }}>{s.detail}</div>
-                      )}
-                      {isActive && (
-                        <div style={{ fontSize: 10, color: '#9898b0', marginTop: 3 }}>
-                          <style>{`@keyframes dots { 0%{content:'.'} 33%{content:'..'} 66%{content:'...'}}`}</style>
-                          Processing...
-                        </div>
-                      )}
-                    </div>
-                    {i < 2 && (
-                      <div style={{
-                        width: 60, height: 2, margin: '0 4px', marginBottom: 30,
-                        background: isDone && currentIdx > sIdx + 1 ? `linear-gradient(90deg, ${s.color}, ${steps[i + 1].color})` : '#2a2a3a',
-                        transition: 'background 0.4s ease',
-                      }} />
-                    )}
-                  </div>
-                );
-              })}
+        {(isPlaying || phase > 0) && (
+          <div style={{ padding: '12px 0' }}>
+            <style>{`
+              @keyframes scanLine { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+              @keyframes termBlink { 0%,100% { opacity:1; } 50% { opacity:0; } }
+            `}</style>
+
+            {/* Progress bar */}
+            <div style={{ display: 'flex', gap: 3, marginBottom: 16 }}>
+              {phases.map((_, i) => (
+                <div key={i} style={{
+                  flex: 1, height: 3, borderRadius: 2,
+                  background: i < phase ? phases[i].color : i === phase ? `${currentPhase.color}40` : '#1a1a25',
+                  position: 'relative', overflow: 'hidden',
+                }}>
+                  {i === phase && isPlaying && (
+                    <div style={{
+                      position: 'absolute', top: 0, left: 0, width: '50%', height: '100%',
+                      background: `linear-gradient(90deg, transparent, ${currentPhase.color})`,
+                      animation: 'scanLine 1.5s ease infinite',
+                    }} />
+                  )}
+                </div>
+              ))}
             </div>
 
-            {step !== 'complete' && step !== 'error' && (
-              <div style={{ textAlign: 'center', fontSize: 12, color: '#505068', fontFamily: 'var(--font-mono)' }}>
-                {secs}s elapsed &mdash; 3 AI agents running sequentially
+            {/* Agent indicator */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: `${currentPhase.color}20`, border: `2px solid ${currentPhase.color}`,
+                fontSize: 12, fontWeight: 800, color: currentPhase.color, fontFamily: 'var(--font-mono)',
+              }}>{agentNum}</div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: currentPhase.color, letterSpacing: 1, fontFamily: 'var(--font-mono)' }}>
+                  {agentNames[agentNum] || 'AGENT'}
+                </div>
+                <div style={{ fontSize: 10, color: '#686880', fontFamily: 'var(--font-mono)' }}>{currentPhase.label}</div>
+              </div>
+              <div style={{ marginLeft: 'auto', fontSize: 10, color: '#505068', fontFamily: 'var(--font-mono)' }}>
+                STEP {Math.min(phase + 1, phases.length)}/{phases.length}
+              </div>
+            </div>
+
+            {/* Terminal output */}
+            <div style={{
+              background: '#0a0a12', border: '1px solid #1a1a25', borderRadius: 8, padding: '12px 16px',
+              fontFamily: 'var(--font-mono)', fontSize: 12, color: currentPhase.color,
+              minHeight: 60, lineHeight: 1.6, position: 'relative',
+            }}>
+              <span style={{ color: '#505068' }}>{'>'} </span>
+              {typedText}
+              {isPlaying && <span style={{ animation: 'termBlink 0.8s step-end infinite', marginLeft: 1 }}>|</span>}
+            </div>
+
+            {/* Framework tags */}
+            {phase >= 4 && frameworksUsed.length > 0 && (
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 10 }}>
+                <span style={{ fontSize: 10, color: '#505068', alignSelf: 'center' }}>Frameworks applied:</span>
+                {frameworksUsed.map((f, i) => (
+                  <span key={i} style={{ fontSize: 10, background: '#22c55e15', color: '#22c55e', padding: '2px 8px', borderRadius: 4, fontFamily: 'var(--font-mono)' }}>{f}</span>
+                ))}
               </div>
             )}
 
-            {step === 'error' && (
-              <div style={{ textAlign: 'center', padding: 12 }}>
-                <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 8 }}>
-                  {error?.includes('Rate limited') ? 'Please wait 30s between triggers.' : `Error: ${(error || '').substring(0, 120)}`}
-                </div>
-                <button onClick={() => setStep('idle')} style={{ background: '#2a2a3a', border: 'none', borderRadius: 6, padding: '8px 20px', color: '#9898b0', cursor: 'pointer', fontSize: 12, fontFamily: 'var(--font-mono)' }}>Try Again</button>
-              </div>
-            )}
-
-            {step === 'complete' && (
-              <div style={{ textAlign: 'center', padding: '8px 0' }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#22c55e', marginBottom: 8 }}>
-                  &#10003; CYCLE COMPLETE IN {secs}s
-                </div>
-                <div style={{ fontSize: 12, color: '#9898b0', marginBottom: 12 }}>
-                  {findings} &middot; Decision: {decision} &middot; Health: {health}
-                </div>
-                <button onClick={() => setStep('idle')} style={{ background: '#2a2a3a', border: 'none', borderRadius: 6, padding: '8px 20px', color: '#9898b0', cursor: 'pointer', fontSize: 12, fontFamily: 'var(--font-mono)' }}>Run Another Cycle</button>
+            {/* Replay again button */}
+            {!isPlaying && phase >= phases.length && (
+              <div style={{ textAlign: 'center', marginTop: 14 }}>
+                <button
+                  onClick={startReplay}
+                  style={{ background: '#2a2a3a', border: 'none', borderRadius: 6, padding: '8px 24px', color: '#9898b0', cursor: 'pointer', fontSize: 12, fontFamily: 'var(--font-mono)', letterSpacing: 0.5 }}
+                >
+                  &#8635; Replay Again
+                </button>
               </div>
             )}
           </div>
@@ -957,9 +946,9 @@ export default function Home() {
           </div></FadeIn>
 
           {/* ============================================================ */}
-          {/* LIVE PIPELINE — THE WOW MOMENT */}
+          {/* AUTONOMOUS CYCLE REPLAY — THE WOW MOMENT */}
           {/* ============================================================ */}
-          <FadeIn delay={0.05}><LivePipeline onCycleComplete={fetchFeed} /></FadeIn>
+          <FadeIn delay={0.05}><AutonomousCycleReplay latestPost={latestAnalysis || null} mind={mind} uniqueSources={uniqueSources} /></FadeIn>
 
           {/* ============================================================ */}
           {/* SYSTEM ARCHITECTURE */}
