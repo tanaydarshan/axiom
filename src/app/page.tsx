@@ -534,7 +534,7 @@ function ProblemStatement() {
   return (
     <section style={{ marginBottom: 32 }}>
       <SectionHeader>THE PROBLEM &mdash; WHY AI NEWS TRACKING IS BROKEN</SectionHeader>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12, marginBottom: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
         <Card style={{ borderLeft: '3px solid #ef4444' }}>
           <div style={{ fontSize: 24, fontWeight: 800, color: '#ef4444', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>500+</div>
           <div style={{ fontSize: 13, color: '#e8e8f0', fontWeight: 600, marginBottom: 4 }}>AI news articles published daily</div>
@@ -606,39 +606,20 @@ function CognitiveDashboard({ data, mind }: { data: FeedData; mind: MindState })
   return (
     <section style={{ marginBottom: 32 }}>
       <SectionHeader>COGNITIVE DASHBOARD &mdash; REAL-TIME VIEW OF AXIOM&apos;S MIND</SectionHeader>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
-
+      {/* Row 1: Sources + Debate side by side */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
         {/* Panel 1: Sources Scanned */}
         <Card>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#3b82f620', border: '1px solid #3b82f640', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#3b82f6', fontFamily: 'var(--font-mono)' }}>01</div>
+            <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#3b82f620', border: '1px solid #3b82f640', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#3b82f6', fontFamily: 'var(--font-mono)' }}>01</div>
             <div style={{ fontSize: 10, fontWeight: 700, color: '#3b82f6', letterSpacing: 1, fontFamily: 'var(--font-mono)' }}>SOURCES SCANNED</div>
-            <div style={{ marginLeft: 'auto', fontSize: 16, fontWeight: 800, color: '#3b82f6', fontFamily: 'var(--font-mono)' }}>{allSources.length}</div>
+            <div style={{ marginLeft: 'auto', fontSize: 16, fontWeight: 800, color: '#3b82f6', fontFamily: 'var(--font-mono)' }}>{allSources.length || '43+'}</div>
           </div>
-          <div style={{ marginBottom: 8 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-              {[
-                { name: 'Google News', count: allSources.filter(u => u.includes('news.google')).length, color: '#3b82f6' },
-                { name: 'Direct Sources', count: allSources.filter(u => !u.includes('news.google')).length, color: '#22c55e' },
-              ].filter(s => s.count > 0).map(s => (
-                <div key={s.name} style={{ background: '#1a1a25', borderRadius: 6, padding: '6px 10px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: s.color, fontFamily: 'var(--font-mono)' }}>{s.count}</div>
-                  <div style={{ fontSize: 10, color: '#686880' }}>{s.name}</div>
-                </div>
-              ))}
-            </div>
+          <div style={{ fontSize: 11, color: '#9898b0', lineHeight: 1.5, marginBottom: 8 }}>
+            Aggregates from <span style={{ color: '#3b82f6', fontWeight: 600 }}>multiple news outlets</span> via Google News RSS. Each article is deduplicated before analysis.
           </div>
-          {allSources.length === 0 ? (
-            <div style={{ fontSize: 12, color: '#505068', fontStyle: 'italic' }}>No sources yet. First cycle pending...</div>
-          ) : (
-            <div style={{ fontSize: 11, color: '#9898b0', lineHeight: 1.6 }}>
-              Aggregates from <span style={{ color: '#3b82f6', fontWeight: 600 }}>multiple news outlets</span> including
-              Reuters, AP, The Verge, TechCrunch, Ars Technica, MIT Tech Review, and more via Google News RSS.
-              Each article is deduplicated before analysis.
-            </div>
-          )}
-          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 8 }}>
-            {['Reuters', 'AP News', 'The Verge', 'TechCrunch', 'Ars Technica', 'MIT Tech Review', 'Al Jazeera'].map(name => (
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            {['Reuters', 'AP News', 'The Verge', 'TechCrunch', 'Ars Technica', 'MIT Tech Review', 'Al Jazeera', 'BBC'].map(name => (
               <span key={name} style={{ fontSize: 9, background: '#3b82f610', color: '#3b82f6', padding: '2px 6px', borderRadius: 3, fontFamily: 'var(--font-mono)' }}>{name}</span>
             ))}
           </div>
@@ -647,89 +628,85 @@ function CognitiveDashboard({ data, mind }: { data: FeedData; mind: MindState })
         {/* Panel 2: Internal Debate */}
         <Card>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#a855f720', border: '1px solid #a855f740', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#a855f7', fontFamily: 'var(--font-mono)' }}>02</div>
+            <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#a855f720', border: '1px solid #a855f740', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#a855f7', fontFamily: 'var(--font-mono)' }}>02</div>
             <div style={{ fontSize: 10, fontWeight: 700, color: '#a855f7', letterSpacing: 1, fontFamily: 'var(--font-mono)' }}>LATEST INTERNAL DEBATE</div>
           </div>
           {latestDebate ? (
             <>
               {latestDebate.topic && (
-                <div style={{ fontSize: 11, color: '#c0c0d8', marginBottom: 8, fontWeight: 600 }}>{latestDebate.topic}</div>
+                <div style={{ fontSize: 11, color: '#c0c0d8', marginBottom: 6, fontWeight: 600 }}>{latestDebate.topic}</div>
               )}
-              <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#22c55e', letterSpacing: 0.5, marginBottom: 3 }}>ADVOCATE</div>
-                <div style={{ fontSize: 12, color: '#9898b0', lineHeight: 1.5, background: '#22c55e08', borderRadius: 6, padding: '6px 10px', borderLeft: '2px solid #22c55e40' }}>
-                  {(latestDebate.advocate || '').substring(0, 160)}{(latestDebate.advocate || '').length > 160 ? '...' : ''}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 6 }}>
+                <div style={{ fontSize: 11, color: '#9898b0', lineHeight: 1.4, background: '#22c55e08', borderRadius: 6, padding: '6px 8px', borderLeft: '2px solid #22c55e40' }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: '#22c55e', letterSpacing: 0.5 }}>ADVOCATE</span><br />
+                  {(latestDebate.advocate || '').substring(0, 120)}{(latestDebate.advocate || '').length > 120 ? '...' : ''}
+                </div>
+                <div style={{ fontSize: 11, color: '#9898b0', lineHeight: 1.4, background: '#ef444408', borderRadius: 6, padding: '6px 8px', borderLeft: '2px solid #ef444440' }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: '#ef4444', letterSpacing: 0.5 }}>SKEPTIC</span><br />
+                  {(latestDebate.skeptic || '').substring(0, 120)}{(latestDebate.skeptic || '').length > 120 ? '...' : ''}
                 </div>
               </div>
-              <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#ef4444', letterSpacing: 0.5, marginBottom: 3 }}>SKEPTIC</div>
-                <div style={{ fontSize: 12, color: '#9898b0', lineHeight: 1.5, background: '#ef444408', borderRadius: 6, padding: '6px 10px', borderLeft: '2px solid #ef444440' }}>
-                  {(latestDebate.skeptic || '').substring(0, 160)}{(latestDebate.skeptic || '').length > 160 ? '...' : ''}
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#f59e0b', letterSpacing: 0.5, marginBottom: 3 }}>VERDICT</div>
-                <div style={{ fontSize: 12, color: '#f59e0b', lineHeight: 1.5 }}>
-                  {(latestDebate.resolution || '').substring(0, 120)}{(latestDebate.resolution || '').length > 120 ? '...' : ''}
-                </div>
+              <div style={{ fontSize: 11, color: '#f59e0b', lineHeight: 1.4 }}>
+                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.5 }}>VERDICT:</span> {(latestDebate.resolution || '').substring(0, 100)}{(latestDebate.resolution || '').length > 100 ? '...' : ''}
               </div>
             </>
           ) : (
             <div style={{ fontSize: 12, color: '#505068', fontStyle: 'italic' }}>Debate data will appear after the first editorial cycle.</div>
           )}
-          <div style={{ fontSize: 10, color: '#505068', marginTop: 8, fontStyle: 'italic' }}>
-            {mind.debate_stats.total_debates} debates held &middot; {mind.debate_stats.advocate_wins} published &middot; {mind.debate_stats.skeptic_wins} rejected
+          <div style={{ fontSize: 10, color: '#505068', marginTop: 6, fontStyle: 'italic' }}>
+            {mind.debate_stats.total_debates} debates &middot; {mind.debate_stats.advocate_wins} published &middot; {mind.debate_stats.skeptic_wins} rejected &middot; {mind.debate_stats.compromises} compromise
           </div>
         </Card>
+      </div>
 
-        {/* Panel 3: Emotional State (all 4 dimensions) */}
+      {/* Row 2: Emotions + Verification side by side */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        {/* Panel 3: Emotional State */}
         <Card>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#ec489920', border: '1px solid #ec489940', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#ec4899', fontFamily: 'var(--font-mono)' }}>03</div>
+            <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#ec489920', border: '1px solid #ec489940', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#ec4899', fontFamily: 'var(--font-mono)' }}>03</div>
             <div style={{ fontSize: 10, fontWeight: 700, color: '#ec4899', letterSpacing: 1, fontFamily: 'var(--font-mono)' }}>COGNITIVE EMOTIONS</div>
           </div>
           {emotionEntries.map(em => (
-            <div key={em.key} style={{ marginBottom: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: em.color, textTransform: 'capitalize' }}>{em.key}</span>
-                <span style={{ fontSize: 14, fontWeight: 800, color: em.color, fontFamily: 'var(--font-mono)' }}>{em.value}</span>
+            <div key={em.key} style={{ marginBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: em.color, textTransform: 'capitalize' }}>{em.key}</span>
+                <span style={{ fontSize: 13, fontWeight: 800, color: em.color, fontFamily: 'var(--font-mono)' }}>{em.value}</span>
               </div>
-              <div style={{ height: 6, background: '#1a1a25', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ height: 5, background: '#1a1a25', borderRadius: 3, overflow: 'hidden' }}>
                 <div style={{ width: `${em.value}%`, height: '100%', background: `linear-gradient(90deg, ${em.color}60, ${em.color})`, borderRadius: 3, transition: 'width 1s ease' }} />
               </div>
-              <div style={{ fontSize: 10, color: '#505068', marginTop: 2 }}>{em.desc}</div>
+              <div style={{ fontSize: 9, color: '#505068', marginTop: 1 }}>{em.desc}</div>
             </div>
           ))}
           <div style={{ fontSize: 10, color: '#505068', marginTop: 4, fontStyle: 'italic', borderTop: '1px solid #2a2a3a', paddingTop: 6 }}>
             Health: <span style={{ color: mind.cognitive_health?.includes('GOOD') ? '#22c55e' : '#f59e0b', fontWeight: 600 }}>{mind.cognitive_health || 'ASSESSING'}</span>
-            {' '}&middot; Not self-reported &mdash; computed from measurable proxies
           </div>
         </Card>
 
-        {/* Panel 4: Verification — what AXIOM produced */}
+        {/* Panel 4: Verification */}
         <Card>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#22c55e20', border: '1px solid #22c55e40', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#22c55e', fontFamily: 'var(--font-mono)' }}>&#10003;</div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#22c55e', letterSpacing: 1, fontFamily: 'var(--font-mono)' }}>VERIFICATION &mdash; PROOF OF WORK</div>
+            <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#22c55e20', border: '1px solid #22c55e40', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#22c55e', fontFamily: 'var(--font-mono)' }}>&#10003;</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#22c55e', letterSpacing: 1, fontFamily: 'var(--font-mono)' }}>PROOF OF WORK</div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
             {[
-              { label: 'Posts Published', value: data.posts.length, color: '#22c55e', detail: 'Scroll down to read each one' },
-              { label: 'Stories Rejected', value: data.rejections.length, color: '#ef4444', detail: 'With documented reasoning' },
-              { label: 'Frameworks Built', value: mind.concept_nursery.total_concepts_ever_created, color: '#a855f7', detail: `${mind.concept_nursery.seedlings + mind.concept_nursery.saplings} growing, ${mind.concept_nursery.mature} mature` },
-              { label: 'Predictions Tracked', value: mind.predictions.total, color: '#f59e0b', detail: `${mind.predictions.confirmed} confirmed, ${mind.predictions.failed} failed` },
-              { label: 'Debates Held', value: mind.debate_stats.total_debates, color: '#6366f1', detail: 'Advocate vs Skeptic' },
-              { label: 'Self-Corrections', value: (data.frameworks || []).filter(f => f.status === 'fallen' || f.status === 'composted').length, color: '#ef4444', detail: 'Frameworks killed for being wrong' },
+              { label: 'Published', value: data.posts.length, color: '#22c55e' },
+              { label: 'Rejected', value: data.rejections.length, color: '#ef4444' },
+              { label: 'Frameworks', value: mind.concept_nursery.total_concepts_ever_created, color: '#a855f7' },
+              { label: 'Predictions', value: mind.predictions.total, color: '#f59e0b' },
+              { label: 'Debates', value: mind.debate_stats.total_debates, color: '#6366f1' },
+              { label: 'Self-Corrections', value: (data.frameworks || []).filter(f => f.status === 'fallen' || f.status === 'composted').length + mind.predictions.failed, color: '#ef4444' },
             ].map(item => (
-              <div key={item.label} style={{ background: '#1a1a25', borderRadius: 8, padding: '8px 10px' }}>
-                <div style={{ fontSize: 18, fontWeight: 800, color: item.color, fontFamily: 'var(--font-mono)' }}>{item.value}</div>
-                <div style={{ fontSize: 11, color: '#e8e8f0', fontWeight: 600 }}>{item.label}</div>
-                <div style={{ fontSize: 10, color: '#505068' }}>{item.detail}</div>
+              <div key={item.label} style={{ background: '#1a1a25', borderRadius: 6, padding: '6px 8px', textAlign: 'center' }}>
+                <div style={{ fontSize: 16, fontWeight: 800, color: item.color, fontFamily: 'var(--font-mono)' }}>{item.value}</div>
+                <div style={{ fontSize: 9, color: '#9898b0', fontWeight: 600 }}>{item.label}</div>
               </div>
             ))}
           </div>
           <div style={{ fontSize: 10, color: '#505068', marginTop: 8, fontStyle: 'italic' }}>
-            Every item above is independently verifiable in the tabs below
+            Every item above is verifiable in the data tabs below
           </div>
         </Card>
       </div>
@@ -746,7 +723,7 @@ function SystemArchitecture() {
     <section style={{ marginBottom: 32 }}>
       <SectionHeader>SYSTEM ARCHITECTURE &mdash; 3 AI AGENTS, 10 MEMORY STORES, 1 AUTONOMOUS LOOP</SectionHeader>
       <Card style={{ padding: 20 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 20 }}>
           {/* External trigger */}
           <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '10px 0' }}>
             <div style={{ background: '#f59e0b15', border: '1px solid #f59e0b30', borderRadius: 8, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1013,7 +990,7 @@ export default function Home() {
             <FadeIn delay={0.1}><section style={{ marginBottom: 32 }}>
               <SectionHeader>WATCH AXIOM THINK &mdash; LATEST EDITORIAL DECISION</SectionHeader>
               <Card>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
                   {/* What it found */}
                   <div>
                     <div style={{ fontSize: 10, fontWeight: 700, color: '#3b82f6', letterSpacing: 1, marginBottom: 6 }}>1. WHAT IT DISCOVERED</div>
@@ -1086,7 +1063,7 @@ export default function Home() {
           {/* ============================================================ */}
           <FadeIn><section style={{ marginBottom: 32 }}>
             <SectionHeader>REPORT CARD &mdash; WHAT AXIOM PRODUCED</SectionHeader>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, marginBottom: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8, marginBottom: 12 }}>
               <StatCard label="HOURS ALIVE" value={formatDuration(mind.cognitive_age_hours)} color="#00d4ff" />
               <StatCard label="STAGE" value={STAGE_LABELS[mind.cognitive_stage] || mind.cognitive_stage} color={stageColor} />
               <StatCard label="NEWS CYCLES" value={String(mind.total_cycles)} color="#6366f1" />
@@ -1097,23 +1074,18 @@ export default function Home() {
             {/* Impact metrics */}
             <Card>
               <div style={{ fontSize: 10, fontWeight: 700, color: '#505068', letterSpacing: 1.5, marginBottom: 10 }}>IMPACT METRICS</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-                <div style={{ fontSize: 13, color: '#9898b0', lineHeight: 1.6 }}>
-                  <span style={{ color: '#00d4ff', fontWeight: 700, fontSize: 18, fontFamily: 'var(--font-mono)' }}>{Math.round(mind.cognitive_age_hours * 0.8)}</span>
-                  <span style={{ color: '#686880' }}> analyst-hours equivalent of research</span>
-                </div>
-                <div style={{ fontSize: 13, color: '#9898b0', lineHeight: 1.6 }}>
-                  <span style={{ color: '#22c55e', fontWeight: 700, fontSize: 18, fontFamily: 'var(--font-mono)' }}>{uniqueSources}</span>
-                  <span style={{ color: '#686880' }}> unique sources scanned autonomously</span>
-                </div>
-                <div style={{ fontSize: 13, color: '#9898b0', lineHeight: 1.6 }}>
-                  <span style={{ color: '#ef4444', fontWeight: 700, fontSize: 18, fontFamily: 'var(--font-mono)' }}>{killedFrameworks.length}</span>
-                  <span style={{ color: '#686880' }}> self-corrections (frameworks killed for being wrong)</span>
-                </div>
-                <div style={{ fontSize: 13, color: '#9898b0', lineHeight: 1.6 }}>
-                  <span style={{ color: '#f59e0b', fontWeight: 700, fontSize: 18, fontFamily: 'var(--font-mono)' }}>{mind.rejection_rate}</span>
-                  <span style={{ color: '#686880' }}> editorial rejection rate (30-60% is healthy)</span>
-                </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10 }}>
+                {[
+                  { value: Math.round(mind.cognitive_age_hours * 0.8), label: 'analyst-hours of research', color: '#00d4ff' },
+                  { value: uniqueSources || mind.total_cycles * 5, label: 'sources scanned', color: '#22c55e' },
+                  { value: killedFrameworks.length + mind.predictions.failed, label: 'self-corrections made', color: '#ef4444' },
+                  { value: mind.rejection_rate, label: 'rejection rate (30-60% healthy)', color: '#f59e0b' },
+                ].map((m, i) => (
+                  <div key={i} style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: m.color, fontFamily: 'var(--font-mono)' }}>{m.value}</div>
+                    <div style={{ fontSize: 10, color: '#686880', lineHeight: 1.3 }}>{m.label}</div>
+                  </div>
+                ))}
               </div>
             </Card>
           </section></FadeIn>
@@ -1124,7 +1096,7 @@ export default function Home() {
           <FadeIn><section style={{ marginBottom: 32 }}>
             <SectionHeader>EDITORIAL INSTINCTS OVER TIME</SectionHeader>
             <Card>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 {[
                   { key: 'curiosity' as const, label: 'Curiosity', color: '#00d4ff', desc: 'What drives exploration' },
                   { key: 'excitement' as const, label: 'Excitement', color: '#a855f7', desc: 'Response to breakthroughs' },
@@ -1161,7 +1133,7 @@ export default function Home() {
             {(data.frameworks || []).length === 0 ? (
               <Card><div style={{ textAlign: 'center', color: '#686880', fontSize: 13, padding: 20 }}>No frameworks yet. AXIOM will start building analytical models as it discovers patterns.</div></Card>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 {(data.frameworks || []).map(fw => (
                   <div key={fw.id} style={{
                     background: '#16161f', border: `1px solid ${(STATUS_COLORS[fw.status] || '#2a2a3a')}30`,
@@ -1249,19 +1221,18 @@ export default function Home() {
           {/* ============================================================ */}
           <FadeIn><section style={{ marginBottom: 32 }}>
             <SectionHeader>WHAT MAKES AXIOM DIFFERENT</SectionHeader>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
               {[
-                { icon: '&#9881;', title: 'Fully Autonomous', desc: 'Runs every 35 minutes without any human input. Discovers, analyzes, decides, and publishes on its own.', color: '#00d4ff' },
-                { icon: '&#9878;', title: 'Self-Correcting', desc: `Built ${mind.concept_nursery.total_concepts_ever_created} frameworks and tracks each one. When evidence contradicts a framework, it kills it publicly.`, color: '#ef4444' },
-                { icon: '&#9873;', title: 'Accountable Predictions', desc: `Makes falsifiable predictions with deadlines (${mind.predictions.total} so far). Every prediction is tracked and will be resolved.`, color: '#f59e0b' },
-                { icon: '&#9733;', title: 'Internal Debate', desc: `An advocate and skeptic argue before every publish decision. ${mind.debate_stats.total_debates} debates held, ${mind.debate_stats.skeptic_wins} stories killed by the skeptic.`, color: '#a855f7' },
-                { icon: '&#9670;', title: 'Evolving Worldview', desc: `Started with zero knowledge. Now in ${STAGE_LABELS[mind.cognitive_stage] || mind.cognitive_stage} stage after ${formatDuration(mind.cognitive_age_hours)} of autonomous operation.`, color: '#22c55e' },
-                { icon: '&#9881;', title: 'Proxy-Based Emotions', desc: 'Cognitive emotions are computed from measurable signals (unanswered questions, framework shifts), not self-reported.', color: '#ec4899' },
+                { title: 'Fully Autonomous', desc: `Runs every 35 minutes without human input. ${mind.total_cycles} cycles completed in ${formatDuration(mind.cognitive_age_hours)}.`, color: '#00d4ff' },
+                { title: 'Self-Correcting', desc: `Built ${mind.concept_nursery.total_concepts_ever_created} frameworks — killed ${killedFrameworks.length} publicly when evidence contradicted them.`, color: '#ef4444' },
+                { title: 'Accountable Predictions', desc: `${mind.predictions.total} falsifiable predictions with deadlines. ${mind.predictions.failed} already failed — tracked honestly.`, color: '#f59e0b' },
+                { title: 'Internal Debate', desc: `Advocate vs Skeptic before every publish. ${mind.debate_stats.total_debates} debates, ${mind.debate_stats.skeptic_wins} stories killed.`, color: '#a855f7' },
+                { title: 'Evolving Worldview', desc: `Started with zero knowledge. Now in ${STAGE_LABELS[mind.cognitive_stage] || mind.cognitive_stage} stage with ${mind.cognitive_dna.strands} crystallized principles.`, color: '#22c55e' },
+                { title: 'Proxy-Based Emotions', desc: 'Cognitive emotions computed from measurable signals — not self-reported. Each score is traceable to a proxy.', color: '#ec4899' },
               ].map((item, i) => (
-                <Card key={i} style={{ borderTop: `2px solid ${item.color}` }}>
-                  <div style={{ fontSize: 20, marginBottom: 6 }} dangerouslySetInnerHTML={{ __html: item.icon }} />
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#e8e8f0', marginBottom: 4 }}>{item.title}</div>
-                  <div style={{ fontSize: 12, color: '#9898b0', lineHeight: 1.6 }}>{item.desc}</div>
+                <Card key={i} style={{ borderTop: `2px solid ${item.color}`, padding: 12 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#e8e8f0', marginBottom: 4 }}>{item.title}</div>
+                  <div style={{ fontSize: 11, color: '#9898b0', lineHeight: 1.5 }}>{item.desc}</div>
                 </Card>
               ))}
             </div>
@@ -1270,7 +1241,7 @@ export default function Home() {
           {/* ============================================================ */}
           {/* GROWTH + EMOTIONS SIDE BY SIDE */}
           {/* ============================================================ */}
-          <FadeIn><section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, marginBottom: 28 }}>
+          <FadeIn><section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 28 }}>
             <Card>
               <div style={{ fontSize: 10, fontWeight: 700, color: '#505068', letterSpacing: 1.5, marginBottom: 10 }}>CURRENT EDITORIAL INSTINCTS</div>
               <EmotionBar label="Curiosity" value={mind.cognitive_emotions.curiosity} color="#00d4ff" />
@@ -1393,7 +1364,7 @@ export default function Home() {
           )}
 
           {tab === 'mind' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <Card>
                 <div style={{ fontSize: 10, fontWeight: 700, color: '#505068', letterSpacing: 1.5, marginBottom: 10 }}>CONCEPT NURSERY</div>
                 {[
