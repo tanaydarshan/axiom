@@ -472,6 +472,9 @@ function LivePipelineMonitor({ onCycleComplete }: { onCycleComplete: () => void 
       const discoverData = await discoverRes.json();
       setResult(prev => ({ ...prev, ...discoverData } as TriggerResult));
 
+      // Brief pause to avoid Groq tokens-per-minute limit
+      await new Promise(r => setTimeout(r, 15000));
+
       // Step 2: Cognition
       setStep('cognizing');
       const cognizeRes = await fetch('/api/agent/trigger?step=cognize', {
@@ -485,6 +488,9 @@ function LivePipelineMonitor({ onCycleComplete }: { onCycleComplete: () => void 
       }
       const cognizeData = await cognizeRes.json();
       setResult(prev => ({ ...prev, cognition: cognizeData.cognition } as TriggerResult));
+
+      // Brief pause to avoid Groq tokens-per-minute limit
+      await new Promise(r => setTimeout(r, 15000));
 
       // Step 3: Meta-cognition
       setStep('reflecting');
@@ -536,7 +542,7 @@ function LivePipelineMonitor({ onCycleComplete }: { onCycleComplete: () => void 
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
             <div style={{ fontSize: 13, color: '#9898b0', marginBottom: 16, lineHeight: 1.6 }}>
               Trigger a full autonomous cycle. AXIOM will scan real news, analyze it with its existing frameworks,
-              debate whether to publish, and update its emotional state. Takes ~15&ndash;30 seconds.
+              debate whether to publish, and update its emotional state. Takes ~45&ndash;60 seconds.
             </div>
             <button
               onClick={runCycle}
