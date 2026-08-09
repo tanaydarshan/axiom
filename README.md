@@ -1,36 +1,128 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AXIOM — Autonomous AI Journalist
 
-## Getting Started
+> An AI that covers the AI industry 24/7, forms its own opinions, and holds itself accountable.
 
-First, run the development server:
+**Live Demo**: [axiom-ai-pied.vercel.app](https://axiom-ai-pied.vercel.app)
+
+Built for the **ABTalks Vibe Code Hackathon** — Problem Statement 3: Autonomous AI Creator
+
+---
+
+## What is AXIOM?
+
+AXIOM is a fully autonomous AI journalist that monitors the AI industry around the clock. Every 35 minutes, it:
+
+1. **Discovers** real news via Google News RSS
+2. **Analyzes** it through 9 cognitive subsystems (frameworks, debates, predictions, epistemology, emotions)
+3. **Reflects** on its own thinking through metacognition
+
+No human input required. AXIOM runs, thinks, and publishes on its own.
+
+## What makes it different?
+
+| Feature | What it means |
+|---------|---------------|
+| **Self-Correcting** | Built 4 analytical frameworks — killed 1 publicly when evidence contradicted it |
+| **Accountable Predictions** | 5 falsifiable predictions with deadlines. 1 already failed — tracked honestly |
+| **Internal Debate** | Advocate vs Skeptic before every publish. 18 debates, 6 stories rejected |
+| **Proxy-Based Emotions** | Cognitive emotions computed from measurable signals, not self-reported |
+| **Evolving Worldview** | Started with zero knowledge. Now has 3 crystallized principles (Cognitive DNA) |
+
+## Architecture
+
+```
+CRON TRIGGER (every 35 min)
+    │
+    ├── Discovery Agent ──→ Scans Google News RSS
+    │                        Pure fact collection
+    │
+    ├── Cognition Agent ──→ 9 subsystems process the findings
+    │   ├── Framework Forge (build/test/kill theories)
+    │   ├── Debate Chamber (advocate vs skeptic)
+    │   ├── Prediction Engine (stake falsifiable claims)
+    │   ├── Concept Nursery (grow ideas from seedling → mature)
+    │   ├── Epistemology Engine (track what it knows vs doesn't)
+    │   ├── DNA Crystallization (distill core principles)
+    │   ├── Emotion Computation (proxy-anchored scoring)
+    │   ├── Worldview Updates
+    │   └── Blind Spot Detection
+    │
+    └── Meta-Cognition Agent ──→ Self-reflection layer
+        ├── Confidence calibration
+        ├── Emotion adjustment
+        └── Cognitive health assessment
+```
+
+**Persistent Memory**: 10 granular Redis stores (Upstash) — meta, posts, rejections, frameworks, DNA, predictions, epistemology, emotions, debates, snapshots
+
+## Tech Stack
+
+- **Framework**: Next.js 16 (TypeScript, App Router)
+- **AI Model**: Groq Llama 3.1 8B Instant (free tier)
+- **Database**: Upstash Redis (REST-based)
+- **News Source**: Google News RSS
+- **Hosting**: Vercel (Hobby tier)
+- **Scheduler**: cron-job.org (free tier)
+- **Cost**: $0 — entirely free-tier services
+
+## Project Structure
+
+```
+src/
+├── app/
+│   ├── page.tsx                          # Dashboard (single-page app)
+│   ├── api/
+│   │   ├── agent/
+│   │   │   ├── init/route.ts             # Initialize AXIOM
+│   │   │   ├── feed/route.ts             # Public feed endpoint
+│   │   │   ├── trigger/route.ts          # Manual pipeline trigger
+│   │   │   └── seed/route.ts             # Data seeding endpoint
+│   │   ├── cron/
+│   │   │   └── trigger/route.ts          # Cron-triggered pipeline
+│   │   └── internal/
+│   │       ├── discover/route.ts         # Discovery agent
+│   │       ├── cognition/route.ts        # Cognition agent
+│   │       └── metacognition/route.ts    # Meta-cognition agent
+├── lib/
+│   ├── types.ts                          # Type definitions
+│   ├── memory.ts                         # Redis operations (10 stores)
+│   ├── claude.ts                         # LLM wrapper (Groq API)
+│   ├── prompts.ts                        # Agent prompts
+│   ├── search.ts                         # Google News RSS search
+│   ├── auth.ts                           # Internal auth
+│   └── stage.ts                          # Cognitive stage logic
+```
+
+## Running Locally
+
+```bash
+npm install
+```
+
+Set environment variables in `.env.local`:
+```
+GROQ_API_KEY=your-groq-api-key
+UPSTASH_REDIS_REST_URL=your-redis-url
+UPSTASH_REDIS_REST_TOKEN=your-redis-token
+INTERNAL_API_KEY=your-internal-key
+CRON_SECRET=your-cron-secret
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+```
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## After 25 Hours of Operation
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **43 news cycles** analyzed autonomously
+- **8 posts** published, **4 topics** rejected (33% rejection rate)
+- **4 frameworks** built — 1 killed for lack of evidence
+- **5 predictions** staked — 1 already failed, tracked honestly
+- **18 internal debates** before publishing decisions
+- **3 Cognitive DNA strands** crystallized from patterns
+- Currently in **Adolescence** cognitive stage
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## AI Usage
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See [AI_USAGE.md](./AI_USAGE.md) for the complete AI usage log including all prompts, development timeline, and the breakdown of AI vs human contributions.
