@@ -1,6 +1,6 @@
-const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
+const GROQ_BASE = 'https://api.groq.com/openai/v1/chat/completions';
 
-interface GeminiCallParams {
+interface LLMCallParams {
   model: string;
   maxTokens: number;
   systemPrompt: string;
@@ -8,45 +8,40 @@ interface GeminiCallParams {
   useWebSearch?: boolean;
 }
 
-function parseRetryDelay(errorText: string): number {
-  const retryMatch = errorText.match(/retry\s*(?:in|Delay['"]\s*:\s*['"]\s*)(\d+)/i);
-  if (retryMatch) return Math.min(parseInt(retryMatch[1]) + 2, 50) * 1000;
-  return 15000;
-}
+export async function callLLM(params: LLMCallParams, maxRetries = 2) {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) throw new Error('GROQ_API_KEY not set');
 
-export async function callLLM(params: GeminiCallParams, maxRetries = 2) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('GEMINI_API_KEY not set');
+  const { maxTokens, systemPrompt, userMessage } = params;
+  const model = 'llama-3.3-70b-versatile';
 
-  const { model, maxTokens, systemPrompt, userMessage, useWebSearch } = params;
-
-  const body: Record<string, unknown> = {
-    system_instruction: { parts: [{ text: systemPrompt }] },
-    contents: [{ role: 'user', parts: [{ text: userMessage }] }],
-    generationConfig: { maxOutputTokens: maxTokens },
+  const body = {
+    model,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userMessage },
+    ],
+    max_tokens: maxTokens,
+    temperature: 0.7,
   };
-
-  if (useWebSearch) {
-    body.tools = [{ google_search: {} }];
-  }
 
   for (let i = 0; i <= maxRetries; i++) {
     try {
-      const response = await fetch(
-        `${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
+      const response = await fetch(GROQ_BASE, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
         },
-      );
+        body: JSON.stringify(body),
+      });
 
       if (response.status === 429) {
-        const errorText = await response.text();
         if (i === maxRetries) {
-          throw new Error(`Gemini API error 429: ${errorText}`);
+          const errorText = await response.text();
+          throw new Error(`LLM API error 429: ${errorText}`);
         }
-        const waitMs = parseRetryDelay(errorText);
+        const waitMs = 5000 + (i * 3000);
         console.log(`[AXIOM LLM] Rate limited (429), waiting ${waitMs / 1000}s before retry ${i + 1}/${maxRetries}`);
         await new Promise(r => setTimeout(r, waitMs));
         continue;
@@ -54,29 +49,34 @@ export async function callLLM(params: GeminiCallParams, maxRetries = 2) {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Gemini API error ${response.status}: ${errorText}`);
+        throw new Error(`LLM API error ${response.status}: ${errorText}`);
       }
 
-      return await response.json();
+      const data = await response.json();
+      return data;
     } catch (error) {
       if (i === maxRetries) throw error;
-      if (error instanceof Error && error.message.includes('429')) {
-        await new Promise(r => setTimeout(r, 15000));
-      } else {
-        await new Promise(r => setTimeout(r, 3000 * (i + 1)));
-      }
+      await new Promise(r => setTimeout(r, 3000 * (i + 1)));
     }
   }
 }
 
 export function extractTextFromResponse(data: Record<string, unknown>): string {
   try {
+    // Groq/OpenAI format
+    const choices = data.choices as { message: { content: string } }[];
+    if (choices?.length && choices[0].message?.content) {
+      return choices[0].message.content;
+    }
+    // Gemini fallback
     const candidates = data.candidates as { content: { parts: { text?: string }[] } }[];
-    if (!candidates?.length) return '';
-    return candidates[0].content.parts
-      .filter(p => p.text)
-      .map(p => p.text)
-      .join('\n');
+    if (candidates?.length) {
+      return candidates[0].content.parts
+        .filter(p => p.text)
+        .map(p => p.text)
+        .join('\n');
+    }
+    return JSON.stringify(data);
   } catch {
     return JSON.stringify(data);
   }
