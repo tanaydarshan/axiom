@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing persona.name or persona.domain' }, { status: 400 });
     }
 
-    const agentId = `${persona.name.toLowerCase()}-001`;
+    const agentId = 'axiom-001';
 
     await initMindState(agentId, persona);
 

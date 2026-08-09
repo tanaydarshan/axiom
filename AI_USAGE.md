@@ -8,7 +8,7 @@ AXIOM was built entirely during the ABTalks Vibe Code Hackathon using AI-assiste
 
 | Tool | Purpose | Usage |
 |------|---------|-------|
-| **Claude Code (Claude Opus)** | Primary development tool | Architecture design, full-stack implementation, debugging, deployment |
+| **Claude Code (Claude Opus)** | Primary development tool | Architecture design, full-stack implementation, debugging, deployment (across 3 sessions) |
 | **Groq API (Llama 3.1 8B Instant)** | Runtime AI — AXIOM's brain | Powers the 3-agent pipeline (discovery, cognition, metacognition) at runtime |
 | **Google News RSS** | News data source | Provides real-time AI industry news for AXIOM to analyze autonomously |
 
