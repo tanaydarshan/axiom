@@ -8,7 +8,7 @@ interface GeminiCallParams {
   useWebSearch?: boolean;
 }
 
-export async function callLLM(params: GeminiCallParams, maxRetries = 3) {
+export async function callLLM(params: GeminiCallParams, maxRetries = 4) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY not set');
 
@@ -40,7 +40,8 @@ export async function callLLM(params: GeminiCallParams, maxRetries = 3) {
           const errorText = await response.text();
           throw new Error(`Gemini API error 429: ${errorText}`);
         }
-        const waitMs = 10000;
+        // Progressive backoff: 8s, 10s, 12s, 14s — total 44s, fits in Vercel 60s
+        const waitMs = 8000 + (i * 2000);
         console.log(`[AXIOM LLM] Rate limited (429), waiting ${waitMs / 1000}s before retry ${i + 1}/${maxRetries}`);
         await new Promise(r => setTimeout(r, waitMs));
         continue;
@@ -55,7 +56,8 @@ export async function callLLM(params: GeminiCallParams, maxRetries = 3) {
     } catch (error) {
       if (i === maxRetries) throw error;
       if (error instanceof Error && error.message.includes('429')) {
-        await new Promise(r => setTimeout(r, 10000));
+        const waitMs = 8000 + (i * 2000);
+        await new Promise(r => setTimeout(r, waitMs));
       } else {
         await new Promise(r => setTimeout(r, 3000 * (i + 1)));
       }

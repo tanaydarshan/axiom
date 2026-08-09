@@ -445,14 +445,31 @@ interface TriggerResult {
   metacognition?: { status: string; emotions?: CognitiveEmotions; blind_spots?: string[]; cognitive_health?: string; curiosity_focus?: string[] };
 }
 
-type PipelineStep = 'idle' | 'discovering' | 'cognizing' | 'reflecting' | 'complete' | 'error';
+type PipelineStep = 'idle' | 'discovering' | 'cooldown1' | 'cognizing' | 'cooldown2' | 'reflecting' | 'complete' | 'error';
 
 function LivePipelineMonitor({ onCycleComplete }: { onCycleComplete: () => void }) {
   const [step, setStep] = useState<PipelineStep>('idle');
   const [result, setResult] = useState<TriggerResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  const [cooldownLeft, setCooldownLeft] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const waitWithCountdown = (seconds: number): Promise<void> => {
+    return new Promise(resolve => {
+      setCooldownLeft(seconds);
+      let remaining = seconds;
+      const id = setInterval(() => {
+        remaining--;
+        setCooldownLeft(remaining);
+        if (remaining <= 0) {
+          clearInterval(id);
+          setCooldownLeft(0);
+          resolve();
+        }
+      }, 1000);
+    });
+  };
 
   const runCycle = async () => {
     setStep('discovering');
@@ -472,6 +489,10 @@ function LivePipelineMonitor({ onCycleComplete }: { onCycleComplete: () => void 
       const discoverData = await discoverRes.json();
       setResult(prev => ({ ...prev, ...discoverData } as TriggerResult));
 
+      // Cooldown: wait 35s for Gemini rate limit to reset
+      setStep('cooldown1');
+      await waitWithCountdown(35);
+
       // Step 2: Cognition — its own 60s Vercel function
       setStep('cognizing');
       const cognizeRes = await fetch('/api/agent/trigger?step=cognize', {
@@ -485,6 +506,10 @@ function LivePipelineMonitor({ onCycleComplete }: { onCycleComplete: () => void 
       }
       const cognizeData = await cognizeRes.json();
       setResult(prev => ({ ...prev, cognition: cognizeData.cognition } as TriggerResult));
+
+      // Cooldown: wait 35s for Gemini rate limit to reset
+      setStep('cooldown2');
+      await waitWithCountdown(35);
 
       // Step 3: Meta-cognition — its own 60s Vercel function
       setStep('reflecting');
@@ -525,8 +550,17 @@ function LivePipelineMonitor({ onCycleComplete }: { onCycleComplete: () => void 
     { key: 'reflecting', label: 'META-COGNITION AGENT', agent: 'Scoring emotions, detecting blind spots...', color: '#ec4899', icon: '03' },
   ];
 
-  const stepOrder: PipelineStep[] = ['discovering', 'cognizing', 'reflecting', 'complete'];
+  const stepOrder: PipelineStep[] = ['discovering', 'cooldown1', 'cognizing', 'cooldown2', 'reflecting', 'complete'];
   const currentIdx = stepOrder.indexOf(step);
+
+  const visualStepIdx = (s: PipelineStep) => {
+    if (s === 'discovering') return 0;
+    if (s === 'cooldown1' || s === 'cognizing') return 1;
+    if (s === 'cooldown2' || s === 'reflecting') return 2;
+    if (s === 'complete') return 3;
+    return -1;
+  };
+  const currentVisualIdx = visualStepIdx(step);
 
   return (
     <section style={{ marginBottom: 32 }}>
@@ -536,7 +570,7 @@ function LivePipelineMonitor({ onCycleComplete }: { onCycleComplete: () => void 
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
             <div style={{ fontSize: 13, color: '#9898b0', marginBottom: 16, lineHeight: 1.6 }}>
               Trigger a full autonomous cycle. AXIOM will scan real news, analyze it with its existing frameworks,
-              debate whether to publish, and update its emotional state. Takes 30&ndash;90 seconds.
+              debate whether to publish, and update its emotional state. Takes ~2 minutes (includes rate-limit cooldowns).
             </div>
             <button
               onClick={runCycle}
@@ -559,10 +593,11 @@ function LivePipelineMonitor({ onCycleComplete }: { onCycleComplete: () => void 
             {/* Pipeline steps */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               {steps.map((s, i) => {
-                const sIdx = stepOrder.indexOf(s.key);
-                const isActive = step === s.key;
-                const isDone = currentIdx > sIdx;
-                const isPending = currentIdx < sIdx;
+                const sVisualIdx = i;
+                const isActive = step === s.key || (s.key === 'cognizing' && step === 'cooldown1') || (s.key === 'reflecting' && step === 'cooldown2');
+                const isCooldown = (s.key === 'cognizing' && step === 'cooldown1') || (s.key === 'reflecting' && step === 'cooldown2');
+                const isDone = currentVisualIdx > sVisualIdx && !isCooldown;
+                const isPending = currentVisualIdx < sVisualIdx;
                 return (
                   <div key={s.key} style={{ display: 'flex', alignItems: 'center', flex: i < 2 ? 1 : 0 }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 100 }}>
@@ -584,7 +619,10 @@ function LivePipelineMonitor({ onCycleComplete }: { onCycleComplete: () => void 
                         <div style={{ fontSize: 10, color: '#9898b0', marginTop: 4, textAlign: 'center' }}>
                           <style>{`@keyframes dotPulse { 0%,80%,100% { opacity:0; } 40% { opacity:1; } }
                           .dot1 { animation: dotPulse 1.4s infinite; } .dot2 { animation: dotPulse 1.4s infinite 0.2s; } .dot3 { animation: dotPulse 1.4s infinite 0.4s; }`}</style>
-                          {s.agent.replace('...', '')}<span className="dot1">.</span><span className="dot2">.</span><span className="dot3">.</span>
+                          {isCooldown
+                            ? <span style={{ color: '#f59e0b' }}>Rate limit cooldown ({cooldownLeft}s)</span>
+                            : <>{s.agent.replace('...', '')}<span className="dot1">.</span><span className="dot2">.</span><span className="dot3">.</span></>
+                          }
                         </div>
                       )}
                       {isDone && result && s.key === 'discovering' && result.discovery && (
@@ -604,7 +642,7 @@ function LivePipelineMonitor({ onCycleComplete }: { onCycleComplete: () => void 
                     {i < 2 && (
                       <div style={{
                         flex: 1, height: 2, margin: '0 8px', marginBottom: 30,
-                        background: isDone && currentIdx > sIdx + 1 ? `linear-gradient(90deg, ${s.color}, ${steps[i + 1].color})` : '#2a2a3a',
+                        background: currentVisualIdx > i + 1 || (currentVisualIdx === i + 1 && !isPending) ? `linear-gradient(90deg, ${s.color}, ${steps[i + 1].color})` : '#2a2a3a',
                         transition: 'background 0.4s ease',
                       }} />
                     )}
@@ -616,7 +654,11 @@ function LivePipelineMonitor({ onCycleComplete }: { onCycleComplete: () => void 
             {/* Timer */}
             {step !== 'complete' && step !== 'error' && (
               <div style={{ textAlign: 'center', fontSize: 12, color: '#505068', fontFamily: 'var(--font-mono)' }}>
-                Elapsed: {formatElapsed(elapsed)} — 3 AI agents running sequentially (may retry on rate limits)
+                Elapsed: {formatElapsed(elapsed)} —{' '}
+                {step === 'cooldown1' || step === 'cooldown2'
+                  ? <span style={{ color: '#f59e0b' }}>cooling down for API rate limit ({cooldownLeft}s)</span>
+                  : '3 AI agents with rate-limit pauses between each'
+                }
               </div>
             )}
 
