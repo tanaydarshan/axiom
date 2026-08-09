@@ -315,46 +315,116 @@ function TimeAgo({ date }: { date: string }) {
   return <span>{Math.floor(hrs / 24)}d ago</span>;
 }
 
-function getTimelineEvents(posts: Post[]) {
-  const events: { time: string; label: string; color: string; postId: string }[] = [];
+function getTimelineEvents(posts: Post[], frameworks: FrameworkData[], predictions: PredictionData[]) {
+  const events: { time: string; label: string; color: string; postId: string; detail?: string }[] = [];
   const chronological = [...posts].reverse();
 
+  // Birth
   const birth = chronological.find(p => p.type === 'birth_certificate');
-  if (birth) events.push({ time: birth.createdAt, label: 'Born', color: '#a855f7', postId: birth.id });
+  if (birth) events.push({ time: birth.createdAt, label: 'Mind Initialized', color: '#a855f7', postId: birth.id, detail: 'Zero knowledge. Zero frameworks. The void.' });
 
-  const firstFw = chronological.find(p => p.type === 'framework_genesis' || p.type === 'framework_proposal');
-  if (firstFw) events.push({ time: firstFw.createdAt, label: '1st Framework', color: '#22c55e', postId: firstFw.id });
-
-  const firstObs = chronological.find(p => p.type === 'observation' || p.type === 'standard');
-  if (firstObs) events.push({ time: firstObs.createdAt, label: '1st Analysis', color: '#6366f1', postId: firstObs.id });
-
-  const firstDebate = chronological.find(p => p.debate_log);
-  if (firstDebate && firstDebate.id !== firstFw?.id) events.push({ time: firstDebate.createdAt, label: '1st Debate', color: '#00d4ff', postId: firstDebate.id });
-
-  const firstEq = chronological.find(p => p.type === 'intellectual_earthquake');
-  if (firstEq) events.push({ time: firstEq.createdAt, label: '1st Earthquake', color: '#ef4444', postId: firstEq.id });
-
-  const snapshot = chronological.find(p => p.type === 'worldview_snapshot');
-  if (snapshot) events.push({ time: snapshot.createdAt, label: 'Snapshot', color: '#ec4899', postId: snapshot.id });
-
-  const testament = chronological.find(p => p.type === 'testament');
-  if (testament) events.push({ time: testament.createdAt, label: 'Testament', color: '#f59e0b', postId: testament.id });
-
+  // Stage transitions
   const stages = new Set<string>();
   for (const p of chronological) {
     if (p.cognitive_stage && !stages.has(p.cognitive_stage) && p.cognitive_stage !== 'infancy') {
       stages.add(p.cognitive_stage);
+      const stageDescs: Record<string, string> = {
+        childhood: 'First frameworks emerging. Testing ideas.',
+        adolescence: 'Sharp and assertive. Named frameworks defended with data.',
+        early_maturity: 'Authority earned through failure. Synthesizes across frameworks.',
+      };
       events.push({
         time: p.createdAt,
-        label: STAGE_LABELS[p.cognitive_stage] || p.cognitive_stage,
+        label: `Stage → ${STAGE_LABELS[p.cognitive_stage] || p.cognitive_stage}`,
         color: STAGE_COLORS[p.cognitive_stage] || '#6366f1',
         postId: p.id,
+        detail: stageDescs[p.cognitive_stage] || '',
       });
     }
   }
 
-  events.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
-  return events;
+  // All framework creations
+  for (const fw of frameworks) {
+    const fwPost = chronological.find(p => p.createdAt && fw.bornCycle > 0);
+    events.push({
+      time: fwPost?.createdAt || chronological[Math.min(fw.bornCycle, chronological.length - 1)]?.createdAt || '',
+      label: `Framework: ${fw.name}`,
+      color: fw.status === 'fallen' || fw.status === 'composted' ? '#ef4444' : '#22c55e',
+      postId: fw.id,
+      detail: `Confidence ${fw.confidence}% · ${fw.status.toUpperCase()}`,
+    });
+  }
+
+  // Framework deaths
+  for (const fw of frameworks) {
+    if ((fw.status === 'fallen' || fw.status === 'composted') && fw.diedCycle !== undefined) {
+      const deathPost = chronological.find(p => p.type === 'intellectual_earthquake') || chronological[0];
+      events.push({
+        time: deathPost?.createdAt || '',
+        label: `Framework Killed: ${fw.name}`,
+        color: '#ef4444',
+        postId: fw.id,
+        detail: fw.deathDiagnosis || 'Collapsed under evidence',
+      });
+    }
+  }
+
+  // Predictions staked
+  for (const pred of predictions) {
+    events.push({
+      time: pred.stakedAt || chronological[0]?.createdAt || '',
+      label: `Prediction: ${pred.id}`,
+      color: pred.status === 'confirmed' ? '#22c55e' : pred.status === 'failed' ? '#ef4444' : '#f59e0b',
+      postId: pred.id,
+      detail: `${pred.prediction.substring(0, 80)}... (${pred.confidence}%)`,
+    });
+  }
+
+  // Intellectual earthquakes
+  for (const p of chronological) {
+    if (p.type === 'intellectual_earthquake') {
+      events.push({ time: p.createdAt, label: 'Intellectual Earthquake', color: '#ef4444', postId: p.id, detail: p.text.substring(0, 80) + '...' });
+    }
+  }
+
+  // Cognitive DNA
+  for (const p of chronological) {
+    if (p.type === 'cognitive_dna') {
+      events.push({ time: p.createdAt, label: 'DNA Crystallized', color: '#f59e0b', postId: p.id, detail: p.text.substring(0, 80) + '...' });
+    }
+  }
+
+  // Worldview snapshots
+  for (const p of chronological) {
+    if (p.type === 'worldview_snapshot') {
+      events.push({ time: p.createdAt, label: 'Worldview Snapshot', color: '#ec4899', postId: p.id, detail: 'Complete cognitive photograph' });
+    }
+  }
+
+  // Testament
+  const testament = chronological.find(p => p.type === 'testament');
+  if (testament) events.push({ time: testament.createdAt, label: 'The Testament', color: '#f59e0b', postId: testament.id, detail: 'Final reflection before shutdown' });
+
+  // First observation/analysis
+  const firstObs = chronological.find(p => p.type === 'observation' || p.type === 'standard');
+  if (firstObs) events.push({ time: firstObs.createdAt, label: 'First Analysis Published', color: '#6366f1', postId: firstObs.id, detail: firstObs.text.substring(0, 60) + '...' });
+
+  // First debate
+  const firstDebate = chronological.find(p => p.debate_log);
+  if (firstDebate) events.push({ time: firstDebate.createdAt, label: 'First Internal Debate', color: '#00d4ff', postId: firstDebate.id, detail: firstDebate.debate_log?.resolution || '' });
+
+  // Deduplicate by label
+  const seen = new Set<string>();
+  const deduped = events.filter(e => {
+    if (!e.time) return false;
+    const k = e.label;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+
+  deduped.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+  return deduped;
 }
 
 // ============================================================
@@ -868,7 +938,7 @@ export default function Home() {
 
   const mind = data?.mind_state;
   const stageColor = STAGE_COLORS[mind?.cognitive_stage || 'infancy'] || '#6366f1';
-  const timelineEvents = useMemo(() => data ? getTimelineEvents(data.posts) : [], [data]);
+  const timelineEvents = useMemo(() => data ? getTimelineEvents(data.posts, data.frameworks || [], data.predictions_list || []) : [], [data]);
 
   const heroLine = useMemo(() => {
     if (!mind) return '';
@@ -894,10 +964,6 @@ export default function Home() {
     return urls.size;
   }, [data]);
 
-  const growthMax = useMemo(() => {
-    if (!mind) return 10;
-    return Math.max(mind.concept_nursery.total_concepts_ever_created, mind.predictions.total, mind.debate_stats.total_debates, mind.total_cycles, 10);
-  }, [mind]);
 
   return (
     <div style={{ maxWidth: 940, margin: '0 auto', padding: '32px 16px', minHeight: '100vh' }}>
@@ -974,6 +1040,37 @@ export default function Home() {
           <FadeIn delay={0.05}><ProblemStatement /></FadeIn>
 
           {/* ============================================================ */}
+          {/* REPORT CARD — VITAL SIGNS (moved up for immediate impact) */}
+          {/* ============================================================ */}
+          <FadeIn delay={0.08}><section style={{ marginBottom: 32 }}>
+            <SectionHeader>REPORT CARD &mdash; WHAT AXIOM PRODUCED</SectionHeader>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8, marginBottom: 12 }}>
+              <StatCard label="HOURS ALIVE" value={formatDuration(mind.cognitive_age_hours)} color="#00d4ff" />
+              <StatCard label="STAGE" value={STAGE_LABELS[mind.cognitive_stage] || mind.cognitive_stage} color={stageColor} />
+              <StatCard label="NEWS CYCLES" value={String(mind.total_cycles)} color="#6366f1" />
+              <StatCard label="PUBLISHED" value={String(data.posts.length)} color="#22c55e" sub={`${data.rejections.length} rejected`} />
+              <StatCard label="FRAMEWORKS" value={String(mind.concept_nursery.total_concepts_ever_created)} color="#22c55e" sub={`${killedFrameworks.length} killed`} />
+              <StatCard label="PREDICTIONS" value={String(mind.predictions.total)} color="#f59e0b" sub={mind.predictions.accuracy !== 'N/A' ? `${mind.predictions.accuracy} accuracy` : undefined} />
+            </div>
+            <Card>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#505068', letterSpacing: 1.5, marginBottom: 10 }}>IMPACT METRICS</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10 }}>
+                {[
+                  { value: Math.round(mind.cognitive_age_hours * 0.8), label: 'analyst-hours of research', color: '#00d4ff' },
+                  { value: uniqueSources || mind.total_cycles * 5, label: 'sources scanned', color: '#22c55e' },
+                  { value: killedFrameworks.length + mind.predictions.failed, label: 'self-corrections made', color: '#ef4444' },
+                  { value: mind.rejection_rate, label: 'rejection rate (30-60% healthy)', color: '#f59e0b' },
+                ].map((m, i) => (
+                  <div key={i} style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: m.color, fontFamily: 'var(--font-mono)' }}>{m.value}</div>
+                    <div style={{ fontSize: 10, color: '#686880', lineHeight: 1.3 }}>{m.label}</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </section></FadeIn>
+
+          {/* ============================================================ */}
           {/* COGNITIVE DASHBOARD — MULTI-PANEL LIVE VIEW */}
           {/* ============================================================ */}
           <FadeIn delay={0.1}><CognitiveDashboard data={data} mind={mind} /></FadeIn>
@@ -1038,19 +1135,27 @@ export default function Home() {
           {/* ============================================================ */}
           {timelineEvents.length > 0 && (
             <FadeIn><section style={{ marginBottom: 32 }}>
-              <SectionHeader>EDITORIAL TIMELINE</SectionHeader>
-              <Card style={{ padding: '20px 24px', overflowX: 'auto' }}>
-                <div style={{ display: 'flex', alignItems: 'center', minWidth: 'fit-content' }}>
+              <SectionHeader>EDITORIAL TIMELINE &mdash; {timelineEvents.length} MILESTONES</SectionHeader>
+              <Card style={{ padding: '20px 24px' }}>
+                <div style={{ position: 'relative', paddingLeft: 28 }}>
+                  {/* Vertical line */}
+                  <div style={{ position: 'absolute', left: 7, top: 6, bottom: 6, width: 2, background: 'linear-gradient(180deg, #a855f740, #00d4ff40, #22c55e40, #f59e0b40)', borderRadius: 1 }} />
                   {timelineEvents.map((evt, i) => (
-                    <div key={evt.postId + i} style={{ display: 'flex', alignItems: 'center', flex: i < timelineEvents.length - 1 ? 1 : 0 }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 70 }}>
-                        <div style={{ width: 12, height: 12, borderRadius: '50%', background: evt.color, boxShadow: `0 0 8px ${evt.color}60` }} />
-                        <div style={{ fontSize: 10, fontWeight: 600, color: evt.color, marginTop: 6, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>{evt.label}</div>
-                        <div style={{ fontSize: 9, color: '#505068', marginTop: 2, fontFamily: 'var(--font-mono)' }}><TimeAgo date={evt.time} /></div>
+                    <div key={evt.label + i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: i < timelineEvents.length - 1 ? 16 : 0, position: 'relative' }}>
+                      {/* Dot on the line */}
+                      <div style={{ position: 'absolute', left: -24, top: 4, width: 14, height: 14, borderRadius: '50%', background: '#0a0a0f', border: `2px solid ${evt.color}`, boxShadow: `0 0 8px ${evt.color}40`, flexShrink: 0 }} />
+                      {/* Content */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: evt.color, fontFamily: 'var(--font-mono)' }}>{evt.label}</span>
+                          <span style={{ fontSize: 10, color: '#505068', fontFamily: 'var(--font-mono)', marginLeft: 'auto', flexShrink: 0 }}>
+                            <TimeAgo date={evt.time} />
+                          </span>
+                        </div>
+                        {evt.detail && (
+                          <div style={{ fontSize: 11, color: '#686880', lineHeight: 1.5, marginTop: 2 }}>{evt.detail}</div>
+                        )}
                       </div>
-                      {i < timelineEvents.length - 1 && (
-                        <div style={{ flex: 1, height: 2, background: `linear-gradient(90deg, ${evt.color}60, ${timelineEvents[i + 1].color}60)`, minWidth: 30, alignSelf: 'flex-start', marginTop: 5 }} />
-                      )}
                     </div>
                   ))}
                 </div>
@@ -1058,37 +1163,6 @@ export default function Home() {
             </section></FadeIn>
           )}
 
-          {/* ============================================================ */}
-          {/* SCENE 4: 48-HOUR REPORT CARD */}
-          {/* ============================================================ */}
-          <FadeIn><section style={{ marginBottom: 32 }}>
-            <SectionHeader>REPORT CARD &mdash; WHAT AXIOM PRODUCED</SectionHeader>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8, marginBottom: 12 }}>
-              <StatCard label="HOURS ALIVE" value={formatDuration(mind.cognitive_age_hours)} color="#00d4ff" />
-              <StatCard label="STAGE" value={STAGE_LABELS[mind.cognitive_stage] || mind.cognitive_stage} color={stageColor} />
-              <StatCard label="NEWS CYCLES" value={String(mind.total_cycles)} color="#6366f1" />
-              <StatCard label="PUBLISHED" value={String(data.posts.length)} color="#22c55e" sub={`${data.rejections.length} rejected`} />
-              <StatCard label="FRAMEWORKS" value={String(mind.concept_nursery.total_concepts_ever_created)} color="#22c55e" sub={`${killedFrameworks.length} killed`} />
-              <StatCard label="PREDICTIONS" value={String(mind.predictions.total)} color="#f59e0b" sub={mind.predictions.accuracy !== 'N/A' ? `${mind.predictions.accuracy} accuracy` : undefined} />
-            </div>
-            {/* Impact metrics */}
-            <Card>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#505068', letterSpacing: 1.5, marginBottom: 10 }}>IMPACT METRICS</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10 }}>
-                {[
-                  { value: Math.round(mind.cognitive_age_hours * 0.8), label: 'analyst-hours of research', color: '#00d4ff' },
-                  { value: uniqueSources || mind.total_cycles * 5, label: 'sources scanned', color: '#22c55e' },
-                  { value: killedFrameworks.length + mind.predictions.failed, label: 'self-corrections made', color: '#ef4444' },
-                  { value: mind.rejection_rate, label: 'rejection rate (30-60% healthy)', color: '#f59e0b' },
-                ].map((m, i) => (
-                  <div key={i} style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: m.color, fontFamily: 'var(--font-mono)' }}>{m.value}</div>
-                    <div style={{ fontSize: 10, color: '#686880', lineHeight: 1.3 }}>{m.label}</div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </section></FadeIn>
 
           {/* ============================================================ */}
           {/* SCENE 5: EMOTION HISTORY SPARKLINES */}
@@ -1238,40 +1312,6 @@ export default function Home() {
             </div>
           </section></FadeIn>
 
-          {/* ============================================================ */}
-          {/* GROWTH + EMOTIONS SIDE BY SIDE */}
-          {/* ============================================================ */}
-          <FadeIn><section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 28 }}>
-            <Card>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#505068', letterSpacing: 1.5, marginBottom: 10 }}>CURRENT EDITORIAL INSTINCTS</div>
-              <EmotionBar label="Curiosity" value={mind.cognitive_emotions.curiosity} color="#00d4ff" />
-              <EmotionBar label="Excitement" value={mind.cognitive_emotions.excitement} color="#a855f7" />
-              <EmotionBar label="Anxiety" value={mind.cognitive_emotions.anxiety} color="#ef4444" />
-              <EmotionBar label="Confidence" value={mind.cognitive_emotions.confidence} color="#22c55e" />
-            </Card>
-            <Card>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#505068', letterSpacing: 1.5, marginBottom: 10 }}>GROWTH VISUALIZATION</div>
-              {[
-                { label: 'Cycles', value: mind.total_cycles, color: '#6366f1' },
-                { label: 'Frameworks', value: mind.concept_nursery.total_concepts_ever_created, color: '#22c55e' },
-                { label: 'Predictions', value: mind.predictions.total, color: '#f59e0b' },
-                { label: 'Debates', value: mind.debate_stats.total_debates, color: '#00d4ff' },
-                { label: 'Earthquakes', value: mind.intellectual_earthquakes, color: '#ef4444' },
-                { label: 'DNA Strands', value: mind.cognitive_dna.strands, color: '#a855f7' },
-              ].map(g => {
-                const pct = growthMax > 0 ? (g.value / growthMax) * 100 : 0;
-                return (
-                  <div key={g.label} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                    <div style={{ width: 80, fontSize: 11, color: '#9898b0', flexShrink: 0 }}>{g.label}</div>
-                    <div style={{ flex: 1, height: 14, background: '#1a1a25', borderRadius: 3, overflow: 'hidden', position: 'relative' }}>
-                      <div style={{ width: `${Math.min(pct, 100)}%`, height: '100%', background: `linear-gradient(90deg, ${g.color}88, ${g.color})`, borderRadius: 3, transition: 'width 0.8s ease', minWidth: g.value > 0 ? 4 : 0 }} />
-                      <span style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', fontSize: 10, fontFamily: 'var(--font-mono)', color: '#e8e8f0' }}>{g.value}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </Card>
-          </section></FadeIn>
 
           {/* ============================================================ */}
           {/* SCENE 8: LIVE FEED TABS */}
