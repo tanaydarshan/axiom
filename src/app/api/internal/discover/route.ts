@@ -39,8 +39,8 @@ export async function POST(request: NextRequest) {
     );
 
     const response = await callLLM({
-      model: 'gemini-3.5-flash',
-      maxTokens: 4096,
+      model: 'llama-3.3-70b-versatile',
+      maxTokens: 2048,
       systemPrompt,
       userMessage: `Here are the latest web search results about AI and technology:\n\n${searchContext}\n\nAnalyze these findings. Report what you observe, what patterns you notice, and what confuses or interests you.`,
       useWebSearch: false,

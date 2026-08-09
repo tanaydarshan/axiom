@@ -20,13 +20,14 @@ export async function POST(request: NextRequest) {
     const mindState = await loadMindState(AGENT_ID);
     const meta = await getAgentMeta(AGENT_ID);
 
+    const cogStr = typeof cognitionOutput === 'string' ? cognitionOutput : JSON.stringify(cognitionOutput);
     const userMessage = JSON.stringify({
-      cognitionOutput,
-      mindStateSummary: mindState,
+      cognitionOutput: cogStr.substring(0, 6000),
+      mindStateSummary: mindState ? JSON.stringify(mindState).substring(0, 2000) : '{}',
     });
 
     const response = await callLLM({
-      model: 'gemini-3.5-flash',
+      model: 'llama-3.3-70b-versatile',
       maxTokens: 2048,
       systemPrompt,
       userMessage,

@@ -20,15 +20,21 @@ export async function POST(request: NextRequest) {
     const compressedState = await compressMindState(AGENT_ID);
     const previousTopics = await getPreviousTopics(AGENT_ID);
 
+    // Truncate discovery input to fit within Groq's request size limits
+    const discoverStr = typeof discoveryResults === 'string' ? discoveryResults : JSON.stringify(discoveryResults);
+    const truncatedDiscoveries = discoverStr.substring(0, 6000);
+    const stateStr = compressedState ? JSON.stringify(compressedState).substring(0, 2000) : '{}';
+    const topicsStr = previousTopics ? JSON.stringify(previousTopics).substring(0, 1000) : '[]';
+
     const userMessage = JSON.stringify({
-      discoveries: discoveryResults,
-      mindState: compressedState,
-      previousTopics,
+      discoveries: truncatedDiscoveries,
+      mindState: stateStr,
+      previousTopics: topicsStr,
     });
 
     const response = await callLLM({
-      model: 'gemini-3.5-flash',
-      maxTokens: 8192,
+      model: 'llama-3.3-70b-versatile',
+      maxTokens: 4096,
       systemPrompt,
       userMessage,
     });
