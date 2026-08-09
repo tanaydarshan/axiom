@@ -522,8 +522,6 @@ interface GraphNode {
   status?: string;
   confidence?: number;
   depth: number;
-  ring: number;
-  createdAt?: string;
 }
 
 interface GraphEdge {
@@ -572,20 +570,17 @@ function buildGraph(data: FeedData): { nodes: GraphNode[]; edges: GraphEdge[] } 
 
   const addNode = (n: GraphNode) => { if (!nodeIds.has(n.id)) { nodeIds.add(n.id); nodes.push(n); } };
 
-  const fwCount = (data.frameworks || []).length;
-
-  // Frameworks — ring 0 (center)
+  // Frameworks — central hubs
   (data.frameworks || []).forEach((fw, i) => {
     const isFallen = fw.status === 'fallen' || fw.status === 'composted';
-    const angle = (i / Math.max(fwCount, 1)) * Math.PI * 2 - Math.PI / 2;
     addNode({
       id: fw.id, label: fw.name, type: 'framework',
       color: isFallen ? '#ef4444' : fw.status === 'mature' ? '#22c55e' : fw.status === 'sapling' || fw.status === 'growing' ? '#3b82f6' : '#a855f7',
-      radius: isFallen ? 14 : 12 + Math.min(fw.confidence / 6, 12),
-      x: 300 + Math.cos(angle) * 90, y: 250 + Math.sin(angle) * 75,
+      radius: isFallen ? 16 : 14 + Math.min(fw.confidence / 5, 12),
+      x: 300 + Math.cos(i * 1.8) * 100, y: 250 + Math.sin(i * 1.8) * 90,
       vx: 0, vy: 0,
       detail: `${fw.description}\n\nStatus: ${fw.status} · Confidence: ${fw.confidence}%${fw.deathDiagnosis ? '\nDeath: ' + fw.deathDiagnosis : ''}`,
-      status: fw.status, confidence: fw.confidence, depth: 0, ring: 0,
+      status: fw.status, confidence: fw.confidence, depth: 0,
     });
     if (fw.parentFramework) {
       edges.push({ source: fw.id, target: fw.parentFramework, color: '#a855f7', label: 'derived from', explanation: '', type: 'derivation' });
@@ -595,21 +590,18 @@ function buildGraph(data: FeedData): { nodes: GraphNode[]; edges: GraphEdge[] } 
     }
   });
 
-  // Posts — ring 1 (middle orbit)
-  const postCount = data.posts.length;
+  // Posts — connected to frameworks
   data.posts.forEach((post, i) => {
     const typeColor = TYPE_LABELS[post.type]?.color || '#6366f1';
-    const angle = (i / Math.max(postCount, 1)) * Math.PI * 2 - Math.PI / 2;
-    const orbitR = 180;
     addNode({
       id: post.id, label: `${TYPE_LABELS[post.type]?.icon || '▸'} ${post.id}`, type: 'post',
       color: typeColor,
-      radius: post.type === 'birth_certificate' ? 12 : post.type === 'framework_genesis' || post.type === 'framework_proposal' ? 10 : 7,
-      x: 300 + Math.cos(angle) * orbitR,
-      y: 250 + Math.sin(angle) * (orbitR * 0.8),
+      radius: post.type === 'birth_certificate' ? 12 : post.type === 'framework_genesis' || post.type === 'framework_proposal' ? 10 : 8,
+      x: 100 + Math.cos(i * 0.9) * 220 + Math.random() * 30,
+      y: 200 + Math.sin(i * 0.9) * 180 + Math.random() * 30,
       vx: 0, vy: 0,
       detail: post.text.substring(0, 200) + (post.text.length > 200 ? '...' : ''),
-      depth: 1, ring: 1, createdAt: post.createdAt,
+      depth: 1,
     });
     (post.frameworks_used || []).forEach(fwName => {
       const fwNode = (data.frameworks || []).find(f => f.name === fwName || f.id === fwName);
@@ -623,49 +615,45 @@ function buildGraph(data: FeedData): { nodes: GraphNode[]; edges: GraphEdge[] } 
     });
   });
 
-  // Predictions — ring 2 (outer)
-  const predCount = (data.predictions_list || []).length;
+  // Predictions
   (data.predictions_list || []).forEach((pred, i) => {
-    const angle = (i / Math.max(predCount, 1)) * Math.PI * 2;
     addNode({
       id: pred.id, label: pred.id, type: 'prediction',
       color: pred.status === 'confirmed' ? '#22c55e' : pred.status === 'failed' ? '#ef4444' : '#f59e0b',
       radius: 9,
-      x: 300 + Math.cos(angle) * 260, y: 250 + Math.sin(angle) * 220,
+      x: 450 + Math.cos(i * 1.5) * 160, y: 200 + Math.sin(i * 1.5) * 130,
       vx: 0, vy: 0,
       detail: `${pred.prediction}\n\nConfidence: ${pred.confidence}% · Status: ${pred.status}${pred.resolution ? '\nResolution: ' + pred.resolution : ''}`,
-      status: pred.status, confidence: pred.confidence, depth: 1, ring: 2,
+      status: pred.status, confidence: pred.confidence, depth: 1,
     });
     const fwNode = (data.frameworks || []).find(f => f.name === pred.derivedFromFramework || f.id === pred.derivedFromFramework);
     if (fwNode) edges.push({ source: pred.id, target: fwNode.id, color: '#f59e0b', label: 'derived from', explanation: '', type: 'derivation' });
   });
 
-  // DNA Strands — ring 0 (inner, with frameworks)
+  // DNA Strands
   (data.dna_strands || []).forEach((dna, i) => {
-    const angle = (i / Math.max((data.dna_strands || []).length, 1)) * Math.PI * 2 + Math.PI / 3;
     addNode({
       id: dna.id, label: dna.name, type: 'dna',
       color: '#ec4899',
-      radius: 10,
-      x: 300 + Math.cos(angle) * 120, y: 250 + Math.sin(angle) * 100,
+      radius: 11,
+      x: 300 + Math.cos(i * 2.1 + 1) * 180, y: 250 + Math.sin(i * 2.1 + 1) * 160,
       vx: 0, vy: 0,
       detail: `${dna.principle}\n\nOrigin: ${dna.originTrace}\nCrystallized at cycle ${dna.crystallizedCycle}`,
-      depth: 0, ring: 0,
+      depth: 0,
     });
   });
 
-  // Rejections — ring 2 (outer fringe)
+  // Rejections
   data.rejections.slice(0, 5).forEach((rej, i) => {
     const rejId = rej.id || `REJ-${i}`;
-    const angle = Math.PI + (i / 5) * Math.PI * 0.8 - Math.PI * 0.4;
     addNode({
       id: rejId, label: `✕ ${rejId}`, type: 'rejection',
       color: '#686880',
-      radius: 5,
-      x: 300 + Math.cos(angle) * 280, y: 250 + Math.sin(angle) * 240,
+      radius: 6,
+      x: 500 + Math.cos(i * 1.3) * 100, y: 350 + Math.sin(i * 1.3) * 80,
       vx: 0, vy: 0,
       detail: `REJECTED: ${rej.topic}\n\n${rej.rejection_reasoning.verdict}`,
-      depth: 2, ring: 2,
+      depth: 2,
     });
     (rej.rejection_reasoning.frameworks_consulted || []).forEach(fwName => {
       const fwNode = (data.frameworks || []).find(f => f.name === fwName || f.id === fwName);
@@ -690,7 +678,6 @@ function NeuralGraph({ data }: { data: FeedData }) {
   const animRef = useRef<number>(0);
   const particlesRef = useRef<{ x: number; y: number; progress: number; edgeIdx: number; speed: number }[]>([]);
   const timeRef = useRef(0);
-  const starsRef = useRef<{ x: number; y: number; size: number; alpha: number; speed: number }[]>([]);
 
   const graph = useMemo(() => buildGraph(data), [data]);
 
@@ -724,7 +711,7 @@ function NeuralGraph({ data }: { data: FeedData }) {
     if (!ctx) return;
 
     const W = container.offsetWidth;
-    const H = 560;
+    const H = 520;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = W * dpr;
     canvas.height = H * dpr;
@@ -732,69 +719,36 @@ function NeuralGraph({ data }: { data: FeedData }) {
     canvas.style.height = H + 'px';
     ctx.scale(dpr, dpr);
 
-    // Radial layout: position nodes in concentric rings
-    const cx = W / 2, cy = H / 2;
-    const ring0R = Math.min(W, H) * 0.14;
-    const ring1R = Math.min(W, H) * 0.32;
-    const ring2R = Math.min(W, H) * 0.44;
-    const ringRadii = [ring0R, ring1R, ring2R];
-
-    const ringNodes: GraphNode[][] = [[], [], []];
-    graph.nodes.forEach(n => ringNodes[Math.min(n.ring, 2)].push(n));
-
-    const nodes = graph.nodes.map(n => {
-      const rn = ringNodes[Math.min(n.ring, 2)];
-      const idx = rn.indexOf(n);
-      const count = rn.length;
-      const angle = (idx / Math.max(count, 1)) * Math.PI * 2 - Math.PI / 2;
-      const r = ringRadii[Math.min(n.ring, 2)];
-      return {
-        ...n,
-        x: cx + Math.cos(angle) * r,
-        y: cy + Math.sin(angle) * r * 0.85,
-      };
-    });
-
+    const nodes = graph.nodes.map(n => ({
+      ...n,
+      x: Math.min(Math.max(n.x * (W / 600), 50), W - 50),
+      y: Math.min(Math.max(n.y * (H / 500), 50), H - 50),
+    }));
     const edges = graph.edges;
     nodesRef.current = nodes;
     edgesRef.current = edges;
 
-    // Stars background
-    if (starsRef.current.length === 0) {
-      const stars: typeof starsRef.current = [];
-      for (let i = 0; i < 120; i++) {
-        stars.push({
-          x: Math.random() * W,
-          y: Math.random() * H,
-          size: Math.random() * 1.5 + 0.3,
-          alpha: Math.random() * 0.4 + 0.1,
-          speed: Math.random() * 0.5 + 0.2,
-        });
-      }
-      starsRef.current = stars;
-    }
-
-    // Particles
+    // Particles flowing along edges
     const particles: typeof particlesRef.current = [];
     edges.forEach((_, idx) => {
       const count = 2 + Math.floor(Math.random() * 2);
       for (let i = 0; i < count; i++) {
-        particles.push({ x: 0, y: 0, progress: Math.random(), edgeIdx: idx, speed: 0.0015 + Math.random() * 0.003 });
+        particles.push({ x: 0, y: 0, progress: Math.random(), edgeIdx: idx, speed: 0.002 + Math.random() * 0.003 });
       }
     });
     particlesRef.current = particles;
 
     const nodeMap = new Map(nodes.map(n => [n.id, n]));
+    const cx = W / 2, cy = H / 2;
 
-    // Edge midpoint calculator
     const getEdgeMid = (edge: GraphEdge, pxOff: number, pyOff: number) => {
       const a = nodeMap.get(edge.source);
       const b = nodeMap.get(edge.target);
       if (!a || !b) return null;
       const ax = a.x + pxOff * a.depth, ay = a.y + pyOff * a.depth;
       const bx = b.x + pxOff * b.depth, by = b.y + pyOff * b.depth;
-      const midX = (ax + bx) / 2 + (ay - by) * 0.12;
-      const midY = (ay + by) / 2 + (bx - ax) * 0.12;
+      const midX = (ax + bx) / 2 + (ay - by) * 0.1;
+      const midY = (ay + by) / 2 + (bx - ax) * 0.1;
       return { ax, ay, bx, by, midX, midY };
     };
 
@@ -803,57 +757,33 @@ function NeuralGraph({ data }: { data: FeedData }) {
       const t = timeRef.current;
       ctx.clearRect(0, 0, W, H);
 
-      // Deep space gradient background
-      const bgGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * 0.7);
-      bgGrad.addColorStop(0, '#0f0f1a');
-      bgGrad.addColorStop(0.5, '#0a0a14');
-      bgGrad.addColorStop(1, '#060610');
-      ctx.fillStyle = bgGrad;
+      // Clean dark background — no stars, intellectual and sleek
+      ctx.fillStyle = '#0c0c14';
       ctx.fillRect(0, 0, W, H);
 
-      // Animated stars
-      for (const star of starsRef.current) {
-        const twinkle = Math.sin(t * star.speed + star.x) * 0.3 + 0.7;
-        ctx.beginPath();
-        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffffff';
-        ctx.globalAlpha = star.alpha * twinkle;
-        ctx.fill();
-        ctx.globalAlpha = 1;
-      }
+      // Subtle center radial glow
+      const centerGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.min(W, H) * 0.45);
+      centerGlow.addColorStop(0, '#14142208');
+      centerGlow.addColorStop(1, '#0c0c1400');
+      ctx.fillStyle = centerGlow;
+      ctx.fillRect(0, 0, W, H);
 
-      // Orbit rings (subtle)
-      ctx.setLineDash([2, 8]);
-      [ring0R, ring1R, ring2R].forEach((r, i) => {
-        ctx.beginPath();
-        ctx.ellipse(cx, cy, r, r * 0.85, 0, 0, Math.PI * 2);
-        ctx.strokeStyle = '#ffffff';
-        ctx.globalAlpha = 0.03 + i * 0.01;
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-      });
-      ctx.setLineDash([]);
-
-      // Force simulation — gentler for structured layout
-      const damping = 0.88;
-      const repulsion = 600;
-      const attractionForce = 0.006;
-      const ringGravity = 0.03;
+      // Force simulation — organic jiggle with good spacing
+      const damping = 0.92;
+      const repulsion = 1200;
+      const attraction = 0.007;
+      const gravity = 0.015;
 
       for (let i = 0; i < nodes.length; i++) {
         const a = nodes[i];
-        // Pull toward ring position
-        const rn = ringNodes[Math.min(a.ring, 2)];
-        const idx = rn.indexOf(graph.nodes.find(gn => gn.id === a.id)!);
-        const count = rn.length;
-        const targetAngle = (idx / Math.max(count, 1)) * Math.PI * 2 - Math.PI / 2;
-        const targetR = ringRadii[Math.min(a.ring, 2)];
-        const tx = cx + Math.cos(targetAngle) * targetR;
-        const ty = cy + Math.sin(targetAngle) * targetR * 0.85;
-        a.vx += (tx - a.x) * ringGravity;
-        a.vy += (ty - a.y) * ringGravity;
+        // Gentle gravity toward center
+        a.vx += (cx - a.x) * gravity;
+        a.vy += (cy - a.y) * gravity;
+        // Micro-jiggle for organic feel
+        a.vx += (Math.sin(t * 1.5 + i * 2.1) * 0.15);
+        a.vy += (Math.cos(t * 1.2 + i * 1.7) * 0.15);
 
+        // Strong repulsion for good spacing
         for (let j = i + 1; j < nodes.length; j++) {
           const b = nodes[j];
           let dx = a.x - b.x;
@@ -861,8 +791,8 @@ function NeuralGraph({ data }: { data: FeedData }) {
           const dist2 = dx * dx + dy * dy;
           if (dist2 < 1) { dx = 1; dy = 1; }
           const dist = Math.sqrt(dist2);
-          const minDist = a.radius + b.radius + 25;
-          if (dist < minDist * 3) {
+          const minDist = a.radius + b.radius + 35;
+          if (dist < minDist * 4) {
             const force = repulsion / dist2;
             a.vx += dx / dist * force;
             a.vy += dy / dist * force;
@@ -872,6 +802,7 @@ function NeuralGraph({ data }: { data: FeedData }) {
         }
       }
 
+      // Attraction along edges
       for (const edge of edges) {
         const a = nodeMap.get(edge.source);
         const b = nodeMap.get(edge.target);
@@ -880,8 +811,8 @@ function NeuralGraph({ data }: { data: FeedData }) {
         const dy = b.y - a.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist > 0) {
-          const targetDist = 80 + a.radius + b.radius;
-          const force = (dist - targetDist) * attractionForce;
+          const targetDist = 90 + a.radius + b.radius;
+          const force = (dist - targetDist) * attraction;
           a.vx += dx / dist * force;
           a.vy += dy / dist * force;
           b.vx -= dx / dist * force;
@@ -894,13 +825,13 @@ function NeuralGraph({ data }: { data: FeedData }) {
         n.vy *= damping;
         n.x += n.vx;
         n.y += n.vy;
-        n.x = Math.max(n.radius + 8, Math.min(W - n.radius - 8, n.x));
-        n.y = Math.max(n.radius + 8, Math.min(H - n.radius - 8, n.y));
+        n.x = Math.max(n.radius + 12, Math.min(W - n.radius - 12, n.x));
+        n.y = Math.max(n.radius + 12, Math.min(H - n.radius - 12, n.y));
       }
 
       // Mouse parallax
-      const px = (mouseRef.current.x - W / 2) * 0.008;
-      const py = (mouseRef.current.y - H / 2) * 0.008;
+      const px = (mouseRef.current.x - W / 2) * 0.01;
+      const py = (mouseRef.current.y - H / 2) * 0.01;
 
       // Hover detection
       const mx = mouseRef.current.canvasX;
@@ -909,7 +840,7 @@ function NeuralGraph({ data }: { data: FeedData }) {
       for (const n of nodes) {
         const dx = (n.x + px * n.depth) - mx;
         const dy = (n.y + py * n.depth) - my;
-        if (dx * dx + dy * dy < (n.radius + 8) * (n.radius + 8)) {
+        if (dx * dx + dy * dy < (n.radius + 6) * (n.radius + 6)) {
           hovered = n;
           break;
         }
@@ -921,24 +852,25 @@ function NeuralGraph({ data }: { data: FeedData }) {
         for (let ei = 0; ei < edges.length; ei++) {
           const mid = getEdgeMid(edges[ei], px, py);
           if (!mid) continue;
-          const qx = (mid.ax + mid.midX * 2 + mid.bx) / 4;
-          const qy = (mid.ay + mid.midY * 2 + mid.by) / 4;
-          const dx1 = mx - mid.midX, dy1 = my - mid.midY;
-          const dx2 = mx - qx, dy2 = my - qy;
-          if (dx1 * dx1 + dy1 * dy1 < 400 || dx2 * dx2 + dy2 * dy2 < 400) {
-            hovEdgeIdx = ei;
-            break;
+          const samples = 5;
+          for (let s = 0; s < samples; s++) {
+            const st = (s + 1) / (samples + 1);
+            const t1 = 1 - st;
+            const sx = t1 * t1 * mid.ax + 2 * t1 * st * mid.midX + st * st * mid.bx;
+            const sy = t1 * t1 * mid.ay + 2 * t1 * st * mid.midY + st * st * mid.by;
+            const d2 = (mx - sx) * (mx - sx) + (my - sy) * (my - sy);
+            if (d2 < 200) { hovEdgeIdx = ei; break; }
           }
+          if (hovEdgeIdx >= 0) break;
         }
       }
 
-      // Active path highlight nodes
+      // Path and connected node sets
       const pathNodeIds = new Set<string>();
       if (activePath >= 0 && thinkingPaths[activePath]) {
         thinkingPaths[activePath].nodeIds.forEach(id => pathNodeIds.add(id));
       }
 
-      // Connected IDs
       const connectedIds = new Set<string>();
       if (hovered) {
         connectedIds.add(hovered.id);
@@ -948,7 +880,7 @@ function NeuralGraph({ data }: { data: FeedData }) {
         }
       }
 
-      // Draw edges
+      // ---- Draw edges ----
       for (let ei = 0; ei < edges.length; ei++) {
         const edge = edges[ei];
         const mid = getEdgeMid(edge, px, py);
@@ -962,12 +894,24 @@ function NeuralGraph({ data }: { data: FeedData }) {
         const style = EDGE_TYPE_STYLES[edge.type] || EDGE_TYPE_STYLES.connection;
 
         let alpha: number, width: number;
-        if (isEdgeHovered) { alpha = 0.9; width = 3; }
-        else if (isNodeHighlighted) { alpha = 0.6; width = 2.5; }
-        else if (isPathEdge) { alpha = 0.7; width = 2.5; }
-        else if (dimmedByPath) { alpha = 0.03; width = 0.5; }
-        else if (hovered) { alpha = 0.04; width = 0.5; }
-        else { alpha = 0.18; width = 1; }
+        if (isEdgeHovered) { alpha = 0.85; width = 2.5; }
+        else if (isNodeHighlighted) { alpha = 0.55; width = 2; }
+        else if (isPathEdge) { alpha = 0.65; width = 2; }
+        else if (dimmedByPath) { alpha = 0.04; width = 0.5; }
+        else if (hovered) { alpha = 0.06; width = 0.5; }
+        else { alpha = 0.25; width = 1.2; }
+
+        // Edge glow for highlighted
+        if ((isNodeHighlighted || isEdgeHovered || isPathEdge) && alpha > 0.3) {
+          ctx.beginPath();
+          ctx.moveTo(ax, ay);
+          ctx.quadraticCurveTo(midX, midY, bx, by);
+          ctx.strokeStyle = style.color;
+          ctx.globalAlpha = alpha * 0.2;
+          ctx.lineWidth = width + 4;
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
 
         ctx.beginPath();
         ctx.setLineDash(style.dash);
@@ -980,9 +924,9 @@ function NeuralGraph({ data }: { data: FeedData }) {
         ctx.setLineDash([]);
         ctx.globalAlpha = 1;
 
-        // Direction arrow at 70% along edge
+        // Direction arrow
         if ((isNodeHighlighted || isEdgeHovered || isPathEdge) && alpha > 0.3) {
-          const at = 0.7;
+          const at = 0.72;
           const t1 = 1 - at;
           const arX = t1 * t1 * ax + 2 * t1 * at * midX + at * at * bx;
           const arY = t1 * t1 * ay + 2 * t1 * at * midY + at * at * by;
@@ -992,38 +936,36 @@ function NeuralGraph({ data }: { data: FeedData }) {
           const arX2 = t2 * t2 * ax + 2 * t2 * at2 * midX + at2 * at2 * bx;
           const arY2 = t2 * t2 * ay + 2 * t2 * at2 * midY + at2 * at2 * by;
           const ang = Math.atan2(arY2 - arY, arX2 - arX);
-          const arrowSize = 6;
+          const sz = 5;
           ctx.beginPath();
-          ctx.moveTo(arX + Math.cos(ang) * arrowSize, arY + Math.sin(ang) * arrowSize);
-          ctx.lineTo(arX + Math.cos(ang + 2.5) * arrowSize, arY + Math.sin(ang + 2.5) * arrowSize);
-          ctx.lineTo(arX + Math.cos(ang - 2.5) * arrowSize, arY + Math.sin(ang - 2.5) * arrowSize);
+          ctx.moveTo(arX + Math.cos(ang) * sz, arY + Math.sin(ang) * sz);
+          ctx.lineTo(arX + Math.cos(ang + 2.5) * sz, arY + Math.sin(ang + 2.5) * sz);
+          ctx.lineTo(arX + Math.cos(ang - 2.5) * sz, arY + Math.sin(ang - 2.5) * sz);
           ctx.closePath();
           ctx.fillStyle = style.color;
-          ctx.globalAlpha = alpha * 0.8;
+          ctx.globalAlpha = alpha * 0.7;
           ctx.fill();
           ctx.globalAlpha = 1;
         }
 
         // Edge label on hover
         if (isEdgeHovered) {
-          ctx.font = '600 10px "Geist Mono", "JetBrains Mono", monospace';
+          const labelText = edge.label.toUpperCase();
+          ctx.font = '600 9px "Geist Mono", "JetBrains Mono", monospace';
           ctx.textAlign = 'center';
-          ctx.fillStyle = '#e8e8f0';
-          ctx.globalAlpha = 0.95;
-          const labelBg = midX;
-          const labelBy2 = midY - 12;
-          const textW = ctx.measureText(edge.label.toUpperCase()).width + 12;
-          ctx.fillStyle = '#16161fdd';
+          const tw = ctx.measureText(labelText).width + 10;
+          ctx.fillStyle = '#16161fee';
           ctx.beginPath();
-          ctx.roundRect(labelBg - textW / 2, labelBy2 - 10, textW, 18, 4);
+          ctx.roundRect(midX - tw / 2, midY - 20, tw, 16, 4);
           ctx.fill();
           ctx.fillStyle = style.color;
-          ctx.fillText(edge.label.toUpperCase(), labelBg, labelBy2 + 2);
+          ctx.globalAlpha = 0.9;
+          ctx.fillText(labelText, midX, midY - 8);
           ctx.globalAlpha = 1;
         }
       }
 
-      // Particles
+      // ---- Particles ----
       for (const p of particles) {
         const edge = edges[p.edgeIdx];
         if (!edge) continue;
@@ -1040,8 +982,20 @@ function NeuralGraph({ data }: { data: FeedData }) {
         const isEdgeHighlighted = hovered && (edge.source === hovered.id || edge.target === hovered.id);
         const isPathEdge = pathNodeIds.has(edge.source) && pathNodeIds.has(edge.target);
         const dimmedByPath = pathNodeIds.size > 0 && !isPathEdge;
-        const pAlpha = isEdgeHighlighted || isPathEdge ? 0.9 : dimmedByPath ? 0.02 : (hovered ? 0.04 : 0.35);
-        const pSize = isEdgeHighlighted || isPathEdge ? 2.5 : 1.5;
+        const pAlpha = isEdgeHighlighted || isPathEdge ? 0.9 : dimmedByPath ? 0.02 : (hovered ? 0.05 : 0.4);
+        const pSize = isEdgeHighlighted || isPathEdge ? 2.5 : 1.8;
+
+        // Particle glow
+        if (pAlpha > 0.3) {
+          const pg = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, pSize + 3);
+          const style = EDGE_TYPE_STYLES[edge.type] || EDGE_TYPE_STYLES.connection;
+          pg.addColorStop(0, style.color + '40');
+          pg.addColorStop(1, style.color + '00');
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, pSize + 3, 0, Math.PI * 2);
+          ctx.fillStyle = pg;
+          ctx.fill();
+        }
 
         ctx.beginPath();
         ctx.arc(p.x, p.y, pSize, 0, Math.PI * 2);
@@ -1052,7 +1006,7 @@ function NeuralGraph({ data }: { data: FeedData }) {
         ctx.globalAlpha = 1;
       }
 
-      // Draw nodes
+      // ---- Draw nodes ----
       for (const n of nodes) {
         const nx = n.x + px * n.depth;
         const ny = n.y + py * n.depth;
@@ -1062,66 +1016,37 @@ function NeuralGraph({ data }: { data: FeedData }) {
         const dimmedByPathSel = pathNodeIds.size > 0 && !isInPath;
         const dimmed = dimmedByHover || dimmedByPathSel;
         const isHovered = hovered?.id === n.id;
-        const highlighted = isHovered || isInPath;
 
-        // Outer glow — nebula effect
-        if (highlighted || (!hovered && !dimmedByPathSel && n.type === 'framework')) {
-          const glowR = n.radius + (isHovered ? 22 : isInPath ? 16 : 10);
-          const glow = ctx.createRadialGradient(nx, ny, n.radius * 0.3, nx, ny, glowR);
-          glow.addColorStop(0, n.color + '50');
-          glow.addColorStop(0.5, n.color + '18');
+        // Glow
+        if (isHovered || (!hovered && !dimmedByPathSel && n.type === 'framework')) {
+          const glowRadius = n.radius + (isHovered ? 18 : 8);
+          const glow = ctx.createRadialGradient(nx, ny, n.radius * 0.5, nx, ny, glowRadius);
+          glow.addColorStop(0, n.color + '40');
           glow.addColorStop(1, n.color + '00');
           ctx.beginPath();
-          ctx.arc(nx, ny, glowR, 0, Math.PI * 2);
+          ctx.arc(nx, ny, glowRadius, 0, Math.PI * 2);
           ctx.fillStyle = glow;
           ctx.fill();
         }
 
-        // Node circle with gradient fill
-        const pulse = n.type === 'framework' ? 1 + Math.sin(t * 2 + nodes.indexOf(n)) * 0.06 : 1;
+        // Node circle with organic pulse
+        const pulse = n.type === 'framework' ? 1 + Math.sin(t * 2 + nodes.indexOf(n)) * 0.08 : 1;
         const nr = n.radius * pulse;
-        const grad = ctx.createRadialGradient(nx - nr * 0.3, ny - nr * 0.3, 0, nx, ny, nr);
-        grad.addColorStop(0, dimmed ? '#1a1a2580' : n.color + '50');
-        grad.addColorStop(1, dimmed ? '#1a1a2530' : n.color + '15');
-
         ctx.beginPath();
         ctx.arc(nx, ny, nr, 0, Math.PI * 2);
-        ctx.fillStyle = grad;
+        ctx.fillStyle = dimmed ? '#1a1a25' : n.color + '25';
         ctx.fill();
         ctx.strokeStyle = dimmed ? '#2a2a3a' : n.color;
         ctx.lineWidth = isHovered ? 2.5 : 1.5;
-        ctx.globalAlpha = dimmed ? 0.2 : 1;
+        ctx.globalAlpha = dimmed ? 0.25 : 1;
         ctx.stroke();
         ctx.globalAlpha = 1;
 
-        // Confidence ring
+        // Confidence ring for frameworks
         if (n.type === 'framework' && n.confidence !== undefined && !dimmed) {
           const angle = (n.confidence / 100) * Math.PI * 2;
           ctx.beginPath();
-          ctx.arc(nx, ny, nr + 5, -Math.PI / 2, -Math.PI / 2 + angle);
-          ctx.strokeStyle = n.color;
-          ctx.lineWidth = 2.5;
-          ctx.globalAlpha = 0.6;
-          ctx.stroke();
-          // Confidence tick marks
-          for (let q = 0; q < 4; q++) {
-            const tickAngle = -Math.PI / 2 + (q / 4) * Math.PI * 2;
-            ctx.beginPath();
-            ctx.moveTo(nx + Math.cos(tickAngle) * (nr + 3), ny + Math.sin(tickAngle) * (nr + 3));
-            ctx.lineTo(nx + Math.cos(tickAngle) * (nr + 7), ny + Math.sin(tickAngle) * (nr + 7));
-            ctx.strokeStyle = '#ffffff';
-            ctx.globalAlpha = 0.15;
-            ctx.lineWidth = 1;
-            ctx.stroke();
-          }
-          ctx.globalAlpha = 1;
-        }
-
-        // Prediction status ring
-        if (n.type === 'prediction' && n.status && !dimmed) {
-          const statusAngle = n.status === 'confirmed' ? Math.PI * 2 : n.status === 'failed' ? Math.PI * 2 : Math.PI;
-          ctx.beginPath();
-          ctx.arc(nx, ny, nr + 4, -Math.PI / 2, -Math.PI / 2 + statusAngle);
+          ctx.arc(nx, ny, nr + 4, -Math.PI / 2, -Math.PI / 2 + angle);
           ctx.strokeStyle = n.color;
           ctx.lineWidth = 2;
           ctx.globalAlpha = 0.5;
@@ -1130,71 +1055,52 @@ function NeuralGraph({ data }: { data: FeedData }) {
         }
 
         // Label
-        if (highlighted || isConnected || (!hovered && !dimmedByPathSel && (n.type === 'framework' || n.type === 'dna'))) {
-          const labelText = n.label.length > 22 ? n.label.substring(0, 20) + '…' : n.label;
-          ctx.font = `${isHovered ? '700 11px' : '500 9px'} 'Geist Mono', 'JetBrains Mono', monospace`;
+        if (isHovered || isConnected || isInPath || (!hovered && !dimmedByPathSel && n.type === 'framework')) {
+          const labelText = n.label.length > 24 ? n.label.substring(0, 22) + '…' : n.label;
+          ctx.font = `${isHovered ? '600 11px' : '500 9px'} 'Geist Mono', 'JetBrains Mono', monospace`;
           ctx.textAlign = 'center';
-
-          // Label background
-          if (isHovered) {
-            const tw = ctx.measureText(labelText).width + 8;
-            ctx.fillStyle = '#0c0c14cc';
-            ctx.beginPath();
-            ctx.roundRect(nx - tw / 2, ny + nr + 6, tw, 16, 3);
-            ctx.fill();
-          }
-
           ctx.fillStyle = dimmed ? '#505068' : '#e8e8f0';
-          ctx.globalAlpha = dimmed ? 0.3 : isHovered ? 1 : 0.85;
-          ctx.fillText(labelText, nx, ny + nr + 18);
+          ctx.globalAlpha = dimmed ? 0.4 : isHovered ? 1 : 0.8;
+          ctx.fillText(labelText, nx, ny + nr + 14);
           ctx.globalAlpha = 1;
         }
 
-        // Type icon
-        if (nr >= 7 && !dimmed) {
+        // Type icon in center
+        if (nr >= 8 && !dimmed) {
           const icons: Record<string, string> = { framework: '◆', post: '▸', prediction: '⊕', dna: '⚙', rejection: '✕' };
-          ctx.font = `${Math.max(8, nr * 0.6)}px sans-serif`;
+          ctx.font = `${Math.max(8, nr * 0.65)}px sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillStyle = n.color;
-          ctx.globalAlpha = 0.8;
+          ctx.globalAlpha = 0.75;
           ctx.fillText(icons[n.type] || '•', nx, ny);
           ctx.globalAlpha = 1;
           ctx.textBaseline = 'alphabetic';
         }
       }
 
-      // Legend
+      // Legend — includes all colors including red (Fallen)
       ctx.font = '500 9px "Geist Mono", monospace';
       ctx.textAlign = 'left';
       const legend = [
-        { label: 'Framework', color: '#22c55e' },
+        { label: 'Framework (active)', color: '#22c55e' },
+        { label: 'Framework (fallen)', color: '#ef4444' },
         { label: 'Article', color: '#6366f1' },
         { label: 'Prediction', color: '#f59e0b' },
         { label: 'DNA Strand', color: '#ec4899' },
         { label: 'Rejected', color: '#686880' },
       ];
       legend.forEach((item, i) => {
-        const lx = 12, ly = H - 12 - (legend.length - 1 - i) * 16;
+        const lx = 12, ly = H - 10 - (legend.length - 1 - i) * 15;
         ctx.beginPath();
-        ctx.arc(lx + 4, ly - 3, 4, 0, Math.PI * 2);
+        ctx.arc(lx + 4, ly - 3, 3.5, 0, Math.PI * 2);
         ctx.fillStyle = item.color;
         ctx.globalAlpha = 0.8;
         ctx.fill();
         ctx.globalAlpha = 1;
         ctx.fillStyle = '#686880';
-        ctx.fillText(item.label, lx + 14, ly);
+        ctx.fillText(item.label, lx + 13, ly);
       });
-
-      // Ring labels
-      ctx.font = '500 8px "Geist Mono", monospace';
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#3a3a50';
-      ctx.globalAlpha = 0.5;
-      ctx.fillText('CORE', cx, cy - ring0R * 0.85 - 8);
-      ctx.fillText('ARTICLES', cx, cy - ring1R * 0.85 - 8);
-      ctx.fillText('PREDICTIONS', cx, cy - ring2R * 0.85 - 8);
-      ctx.globalAlpha = 1;
 
       animRef.current = requestAnimationFrame(draw);
     };
@@ -1208,34 +1114,35 @@ function NeuralGraph({ data }: { data: FeedData }) {
 
       const mmx = mouseRef.current.canvasX;
       const mmy = mouseRef.current.canvasY;
-      const pxOff = (mouseRef.current.x - W / 2) * 0.008;
-      const pyOff = (mouseRef.current.y - H / 2) * 0.008;
+      const pxOff = (mouseRef.current.x - W / 2) * 0.01;
+      const pyOff = (mouseRef.current.y - H / 2) * 0.01;
 
       let found: GraphNode | null = null;
       for (const n of nodes) {
         const dx = (n.x + pxOff * n.depth) - mmx;
         const dy = (n.y + pyOff * n.depth) - mmy;
-        if (dx * dx + dy * dy < (n.radius + 8) * (n.radius + 8)) {
+        if (dx * dx + dy * dy < (n.radius + 6) * (n.radius + 6)) {
           found = n;
           break;
         }
       }
       setHoveredNode(found);
 
-      // Edge hover
       let hovEI = -1;
       if (!found) {
         for (let ei = 0; ei < edges.length; ei++) {
           const mid = getEdgeMid(edges[ei], pxOff, pyOff);
           if (!mid) continue;
-          const qx = (mid.ax + mid.midX * 2 + mid.bx) / 4;
-          const qy = (mid.ay + mid.midY * 2 + mid.by) / 4;
-          const dx1 = mmx - mid.midX, dy1 = mmy - mid.midY;
-          const dx2 = mmx - qx, dy2 = mmy - qy;
-          if (dx1 * dx1 + dy1 * dy1 < 400 || dx2 * dx2 + dy2 * dy2 < 400) {
-            hovEI = ei;
-            break;
+          const samples = 5;
+          for (let s = 0; s < samples; s++) {
+            const st = (s + 1) / (samples + 1);
+            const t1 = 1 - st;
+            const sx = t1 * t1 * mid.ax + 2 * t1 * st * mid.midX + st * st * mid.bx;
+            const sy = t1 * t1 * mid.ay + 2 * t1 * st * mid.midY + st * st * mid.by;
+            const d2 = (mmx - sx) * (mmx - sx) + (mmy - sy) * (mmy - sy);
+            if (d2 < 200) { hovEI = ei; break; }
           }
+          if (hovEI >= 0) break;
         }
       }
       setHoveredEdgeIdx(hovEI);
@@ -1246,32 +1153,34 @@ function NeuralGraph({ data }: { data: FeedData }) {
       const rect = canvas.getBoundingClientRect();
       const cmx = e.clientX - rect.left;
       const cmy = e.clientY - rect.top;
-      const pxOff = (cmx - W / 2) * 0.008;
-      const pyOff = (cmy - H / 2) * 0.008;
+      const pxOff = (cmx - W / 2) * 0.01;
+      const pyOff = (cmy - H / 2) * 0.01;
 
-      // Check node click
       for (const n of nodes) {
         const dx = (n.x + pxOff * n.depth) - cmx;
         const dy = (n.y + pyOff * n.depth) - cmy;
-        if (dx * dx + dy * dy < (n.radius + 8) * (n.radius + 8)) {
+        if (dx * dx + dy * dy < (n.radius + 6) * (n.radius + 6)) {
           setSelectedNode(prev => prev?.id === n.id ? null : n);
           setSelectedEdge(null);
           return;
         }
       }
 
-      // Check edge click
       for (let ei = 0; ei < edges.length; ei++) {
         const mid = getEdgeMid(edges[ei], pxOff, pyOff);
         if (!mid) continue;
-        const qx = (mid.ax + mid.midX * 2 + mid.bx) / 4;
-        const qy = (mid.ay + mid.midY * 2 + mid.by) / 4;
-        const dx1 = cmx - mid.midX, dy1 = cmy - mid.midY;
-        const dx2 = cmx - qx, dy2 = cmy - qy;
-        if (dx1 * dx1 + dy1 * dy1 < 400 || dx2 * dx2 + dy2 * dy2 < 400) {
-          setSelectedEdge(prev => prev === edges[ei] ? null : edges[ei]);
-          setSelectedNode(null);
-          return;
+        const samples = 5;
+        for (let s = 0; s < samples; s++) {
+          const st = (s + 1) / (samples + 1);
+          const t1 = 1 - st;
+          const sx = t1 * t1 * mid.ax + 2 * t1 * st * mid.midX + st * st * mid.bx;
+          const sy = t1 * t1 * mid.ay + 2 * t1 * st * mid.midY + st * st * mid.by;
+          const d2 = (cmx - sx) * (cmx - sx) + (cmy - sy) * (cmy - sy);
+          if (d2 < 200) {
+            setSelectedEdge(prev => prev === edges[ei] ? null : edges[ei]);
+            setSelectedNode(null);
+            return;
+          }
         }
       }
 
@@ -1300,14 +1209,14 @@ function NeuralGraph({ data }: { data: FeedData }) {
     <section style={{ marginBottom: 32 }}>
       <SectionHeader>NEURAL MAP &mdash; AXIOM&apos;S COGNITIVE NETWORK</SectionHeader>
 
-      {/* Thinking Paths Bar */}
+      {/* Thinking Paths */}
       {thinkingPaths.length > 0 && (
         <div style={{ display: 'flex', gap: 6, padding: '8px 0', marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ fontSize: 9, fontWeight: 700, color: '#505068', letterSpacing: 1, fontFamily: 'var(--font-mono)', marginRight: 4 }}>THINKING PATHS:</span>
+          <span style={{ fontSize: 9, fontWeight: 700, color: '#505068', letterSpacing: 1, fontFamily: 'var(--font-mono)', marginRight: 4 }}>TRACE PATH:</span>
           <button
             onClick={() => setActivePath(-1)}
             style={{
-              background: activePath === -1 ? '#22c55e18' : '#16161f',
+              background: activePath === -1 ? '#22c55e15' : 'transparent',
               border: `1px solid ${activePath === -1 ? '#22c55e40' : '#2a2a3a'}`,
               borderRadius: 6, padding: '3px 10px', fontSize: 10, cursor: 'pointer',
               color: activePath === -1 ? '#22c55e' : '#686880', fontFamily: 'var(--font-mono)',
@@ -1318,7 +1227,7 @@ function NeuralGraph({ data }: { data: FeedData }) {
               key={i}
               onClick={() => setActivePath(activePath === i ? -1 : i)}
               style={{
-                background: activePath === i ? path.color + '18' : '#16161f',
+                background: activePath === i ? path.color + '15' : 'transparent',
                 border: `1px solid ${activePath === i ? path.color + '40' : '#2a2a3a'}`,
                 borderRadius: 6, padding: '3px 10px', fontSize: 10, cursor: 'pointer',
                 color: activePath === i ? path.color : '#686880', fontFamily: 'var(--font-mono)',
@@ -1330,19 +1239,18 @@ function NeuralGraph({ data }: { data: FeedData }) {
         </div>
       )}
 
-      <div ref={containerRef} style={{ background: '#0a0a14', border: '1px solid #1a1a2a', borderRadius: 14, overflow: 'hidden', position: 'relative' }}>
-        <canvas ref={canvasRef} style={{ display: 'block', width: '100%', height: 560 }} />
+      <div ref={containerRef} style={{ background: '#0c0c14', border: '1px solid #2a2a3a', borderRadius: 12, overflow: 'hidden', position: 'relative' }}>
+        <canvas ref={canvasRef} style={{ display: 'block', width: '100%', height: 520 }} />
 
         {/* Hover tooltip */}
         {hoveredNode && !selectedNode && !selectedEdge && (
           <div style={{
-            position: 'absolute', top: 12, right: 12, width: 260,
-            background: '#12121dee', border: `1px solid ${hoveredNode.color}30`,
+            position: 'absolute', top: 12, right: 12, width: 250,
+            background: '#16161fee', border: `1px solid ${hoveredNode.color}40`,
             borderRadius: 10, padding: 14, pointerEvents: 'none',
-            backdropFilter: 'blur(8px)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: hoveredNode.color, flexShrink: 0 }} />
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: hoveredNode.color, flexShrink: 0 }} />
               <span style={{ fontSize: 9, fontWeight: 700, color: hoveredNode.color, letterSpacing: 1, fontFamily: 'var(--font-mono)' }}>
                 {hoveredNode.type.toUpperCase()}
               </span>
@@ -1351,10 +1259,9 @@ function NeuralGraph({ data }: { data: FeedData }) {
               )}
             </div>
             <div style={{ fontSize: 13, fontWeight: 600, color: '#e8e8f0', marginBottom: 6, lineHeight: 1.3 }}>{hoveredNode.label}</div>
-            <div style={{ fontSize: 11, color: '#9898b0', lineHeight: 1.5, whiteSpace: 'pre-wrap', maxHeight: 100, overflow: 'hidden' }}>
+            <div style={{ fontSize: 11, color: '#9898b0', lineHeight: 1.5, whiteSpace: 'pre-wrap', maxHeight: 120, overflow: 'hidden' }}>
               {hoveredNode.detail}
             </div>
-            <div style={{ fontSize: 9, color: '#505068', marginTop: 6, fontFamily: 'var(--font-mono)' }}>Click to inspect details</div>
           </div>
         )}
 
@@ -1362,9 +1269,8 @@ function NeuralGraph({ data }: { data: FeedData }) {
         {hoveredEdgeIdx >= 0 && !selectedNode && !selectedEdge && !hoveredNode && (
           <div style={{
             position: 'absolute', top: 12, right: 12, width: 240,
-            background: '#12121dee', border: `1px solid ${(EDGE_TYPE_STYLES[edgesRef.current[hoveredEdgeIdx]?.type] || EDGE_TYPE_STYLES.connection).color}30`,
+            background: '#16161fee', border: `1px solid ${(EDGE_TYPE_STYLES[edgesRef.current[hoveredEdgeIdx]?.type] || EDGE_TYPE_STYLES.connection).color}40`,
             borderRadius: 10, padding: 14, pointerEvents: 'none',
-            backdropFilter: 'blur(8px)',
           }}>
             <div style={{ fontSize: 9, fontWeight: 700, color: (EDGE_TYPE_STYLES[edgesRef.current[hoveredEdgeIdx]?.type] || EDGE_TYPE_STYLES.connection).color, letterSpacing: 1, fontFamily: 'var(--font-mono)', marginBottom: 4 }}>
               {(EDGE_TYPE_STYLES[edgesRef.current[hoveredEdgeIdx]?.type] || EDGE_TYPE_STYLES.connection).label.toUpperCase()}
@@ -1374,16 +1280,15 @@ function NeuralGraph({ data }: { data: FeedData }) {
           </div>
         )}
 
-        {/* Selected NODE detail panel */}
+        {/* Selected NODE panel */}
         {selectedNode && (
           <div style={{
             position: 'absolute', top: 12, right: 12, width: 300,
-            background: '#12121dfa', border: `1px solid ${selectedNode.color}40`,
-            borderRadius: 12, padding: 18, maxHeight: 500, overflowY: 'auto',
-            backdropFilter: 'blur(12px)',
+            background: '#16161ffa', border: `1px solid ${selectedNode.color}60`,
+            borderRadius: 12, padding: 18, maxHeight: 460, overflowY: 'auto',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: selectedNode.color, letterSpacing: 1, fontFamily: 'var(--font-mono)', background: selectedNode.color + '12', padding: '2px 8px', borderRadius: 4 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: selectedNode.color, letterSpacing: 1, fontFamily: 'var(--font-mono)', background: selectedNode.color + '15', padding: '2px 8px', borderRadius: 4 }}>
                 {selectedNode.type.toUpperCase()}
               </span>
               <button onClick={() => setSelectedNode(null)} style={{ background: 'none', border: 'none', color: '#686880', cursor: 'pointer', fontSize: 14 }}>✕</button>
@@ -1396,7 +1301,7 @@ function NeuralGraph({ data }: { data: FeedData }) {
               </div>
             )}
             <div style={{ fontSize: 12, color: '#9898b0', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{selectedNode.detail}</div>
-            <div style={{ marginTop: 12, borderTop: '1px solid #1a1a2a', paddingTop: 10 }}>
+            <div style={{ marginTop: 12, borderTop: '1px solid #2a2a3a', paddingTop: 10 }}>
               <div style={{ fontSize: 9, fontWeight: 700, color: '#505068', letterSpacing: 1, marginBottom: 6 }}>CONNECTIONS</div>
               {edgesRef.current.filter(e => e.source === selectedNode.id || e.target === selectedNode.id).map((e, i) => {
                 const otherId = e.source === selectedNode.id ? e.target : e.source;
@@ -1405,13 +1310,13 @@ function NeuralGraph({ data }: { data: FeedData }) {
                 return (
                   <div key={i}
                     onClick={() => { setSelectedEdge(e); setSelectedNode(null); }}
-                    style={{ fontSize: 11, color: '#686880', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', padding: '3px 4px', borderRadius: 4, transition: 'background 0.15s' }}
+                    style={{ fontSize: 11, color: '#686880', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', padding: '2px 4px', borderRadius: 4 }}
                     onMouseEnter={ev => (ev.currentTarget.style.background = '#ffffff08')}
                     onMouseLeave={ev => (ev.currentTarget.style.background = 'transparent')}
                   >
                     <span style={{ width: 6, height: 6, borderRadius: '50%', background: style.color, flexShrink: 0 }} />
-                    <span style={{ color: '#9898b0', fontSize: 10 }}>{e.label}</span>
-                    <span style={{ color: TYPE_COLORS[otherNode?.type || 'post'], fontFamily: 'var(--font-mono)', fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{otherNode?.label || otherId}</span>
+                    <span style={{ color: '#9898b0' }}>{e.label}</span>
+                    <span style={{ color: TYPE_COLORS[otherNode?.type || 'post'], fontFamily: 'var(--font-mono)', fontSize: 10 }}>{otherNode?.label || otherId}</span>
                   </div>
                 );
               })}
@@ -1425,64 +1330,45 @@ function NeuralGraph({ data }: { data: FeedData }) {
         {/* Selected EDGE explanation panel */}
         {selectedEdge && (
           <div style={{
-            position: 'absolute', top: 12, right: 12, width: 320,
-            background: '#12121dfa', border: `1px solid ${(EDGE_TYPE_STYLES[selectedEdge.type] || EDGE_TYPE_STYLES.connection).color}40`,
-            borderRadius: 12, padding: 18, maxHeight: 500, overflowY: 'auto',
-            backdropFilter: 'blur(12px)',
+            position: 'absolute', top: 12, right: 12, width: 310,
+            background: '#16161ffa', border: `1px solid ${(EDGE_TYPE_STYLES[selectedEdge.type] || EDGE_TYPE_STYLES.connection).color}60`,
+            borderRadius: 12, padding: 18, maxHeight: 460, overflowY: 'auto',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: (EDGE_TYPE_STYLES[selectedEdge.type] || EDGE_TYPE_STYLES.connection).color, letterSpacing: 1, fontFamily: 'var(--font-mono)', background: (EDGE_TYPE_STYLES[selectedEdge.type] || EDGE_TYPE_STYLES.connection).color + '12', padding: '2px 8px', borderRadius: 4 }}>
-                CONNECTION EXPLAINED
+              <span style={{ fontSize: 10, fontWeight: 700, color: (EDGE_TYPE_STYLES[selectedEdge.type] || EDGE_TYPE_STYLES.connection).color, letterSpacing: 1, fontFamily: 'var(--font-mono)', background: (EDGE_TYPE_STYLES[selectedEdge.type] || EDGE_TYPE_STYLES.connection).color + '15', padding: '2px 8px', borderRadius: 4 }}>
+                CONNECTION
               </span>
               <button onClick={() => setSelectedEdge(null)} style={{ background: 'none', border: 'none', color: '#686880', cursor: 'pointer', fontSize: 14 }}>✕</button>
             </div>
 
-            {/* Connection visual */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, padding: '10px 12px', background: '#0a0a1280', borderRadius: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '8px 10px', background: '#0c0c1480', borderRadius: 8 }}>
               <div style={{ textAlign: 'center', flex: 1 }}>
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: TYPE_COLORS[selectedEdgeSourceNode?.type || 'post'], margin: '0 auto 4px' }} />
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: TYPE_COLORS[selectedEdgeSourceNode?.type || 'post'], margin: '0 auto 3px' }} />
                 <div style={{ fontSize: 10, color: '#e8e8f0', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedEdgeSourceNode?.label || selectedEdge.source}</div>
-                <div style={{ fontSize: 8, color: '#505068', fontFamily: 'var(--font-mono)' }}>{selectedEdgeSourceNode?.type?.toUpperCase()}</div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <div style={{ width: 24, height: 1, background: (EDGE_TYPE_STYLES[selectedEdge.type] || EDGE_TYPE_STYLES.connection).color + '60' }} />
-                <div style={{ fontSize: 8, color: (EDGE_TYPE_STYLES[selectedEdge.type] || EDGE_TYPE_STYLES.connection).color, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap', padding: '0 4px' }}>{selectedEdge.label}</div>
-                <div style={{ width: 24, height: 1, background: (EDGE_TYPE_STYLES[selectedEdge.type] || EDGE_TYPE_STYLES.connection).color + '60' }} />
-              </div>
+              <div style={{ fontSize: 8, color: (EDGE_TYPE_STYLES[selectedEdge.type] || EDGE_TYPE_STYLES.connection).color, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>{selectedEdge.label}</div>
               <div style={{ textAlign: 'center', flex: 1 }}>
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: TYPE_COLORS[selectedEdgeTargetNode?.type || 'post'], margin: '0 auto 4px' }} />
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: TYPE_COLORS[selectedEdgeTargetNode?.type || 'post'], margin: '0 auto 3px' }} />
                 <div style={{ fontSize: 10, color: '#e8e8f0', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedEdgeTargetNode?.label || selectedEdge.target}</div>
-                <div style={{ fontSize: 8, color: '#505068', fontFamily: 'var(--font-mono)' }}>{selectedEdgeTargetNode?.type?.toUpperCase()}</div>
               </div>
             </div>
 
-            {/* Explanation */}
-            <div style={{ fontSize: 9, fontWeight: 700, color: '#505068', letterSpacing: 1, marginBottom: 6, fontFamily: 'var(--font-mono)' }}>WHAT THIS MEANS</div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: '#505068', letterSpacing: 1, marginBottom: 4, fontFamily: 'var(--font-mono)' }}>WHAT THIS MEANS</div>
             <div style={{ fontSize: 12, color: '#b8b8c8', lineHeight: 1.7 }}>
               {generateEdgeExplanation(selectedEdge, selectedEdgeSourceNode || undefined, selectedEdgeTargetNode || undefined)}
             </div>
 
-            {/* Connection type info */}
-            <div style={{ marginTop: 14, borderTop: '1px solid #1a1a2a', paddingTop: 10 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: '#505068', letterSpacing: 1, marginBottom: 4, fontFamily: 'var(--font-mono)' }}>CONNECTION TYPE</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ width: 20, height: 2, background: (EDGE_TYPE_STYLES[selectedEdge.type] || EDGE_TYPE_STYLES.connection).color, borderRadius: 1 }} />
-                <span style={{ fontSize: 11, color: (EDGE_TYPE_STYLES[selectedEdge.type] || EDGE_TYPE_STYLES.connection).color }}>{(EDGE_TYPE_STYLES[selectedEdge.type] || EDGE_TYPE_STYLES.connection).label}</span>
-              </div>
-            </div>
-
-            {/* Navigate to nodes */}
             <div style={{ marginTop: 10, display: 'flex', gap: 6 }}>
               {selectedEdgeSourceNode && (
                 <button
                   onClick={() => { setSelectedNode(selectedEdgeSourceNode); setSelectedEdge(null); }}
-                  style={{ flex: 1, background: '#ffffff06', border: '1px solid #2a2a3a', borderRadius: 6, padding: '6px 8px', fontSize: 10, color: '#9898b0', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}
+                  style={{ flex: 1, background: '#ffffff06', border: '1px solid #2a2a3a', borderRadius: 6, padding: '5px 8px', fontSize: 10, color: '#9898b0', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}
                 >Inspect source</button>
               )}
               {selectedEdgeTargetNode && (
                 <button
                   onClick={() => { setSelectedNode(selectedEdgeTargetNode); setSelectedEdge(null); }}
-                  style={{ flex: 1, background: '#ffffff06', border: '1px solid #2a2a3a', borderRadius: 6, padding: '6px 8px', fontSize: 10, color: '#9898b0', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}
+                  style={{ flex: 1, background: '#ffffff06', border: '1px solid #2a2a3a', borderRadius: 6, padding: '5px 8px', fontSize: 10, color: '#9898b0', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}
                 >Inspect target</button>
               )}
             </div>
@@ -1490,23 +1376,13 @@ function NeuralGraph({ data }: { data: FeedData }) {
         )}
 
         {/* Stats bar */}
-        <div style={{ display: 'flex', gap: 12, padding: '10px 16px', borderTop: '1px solid #1a1a25', fontSize: 10, color: '#505068', fontFamily: 'var(--font-mono)', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 16, padding: '10px 16px', borderTop: '1px solid #1a1a25', fontSize: 10, color: '#505068', fontFamily: 'var(--font-mono)' }}>
           <span>{graph.nodes.length} nodes</span>
           <span>{graph.edges.length} synapses</span>
           <span style={{ color: '#22c55e' }}>{graph.nodes.filter(n => n.type === 'framework').length} frameworks</span>
           <span style={{ color: '#f59e0b' }}>{graph.nodes.filter(n => n.type === 'prediction').length} predictions</span>
-          <span style={{ color: '#ec4899' }}>{graph.nodes.filter(n => n.type === 'dna').length} DNA strands</span>
-          <span style={{ marginLeft: 'auto', color: '#505068' }}>hover to explore · click nodes or connections to inspect</span>
-        </div>
-
-        {/* Edge type legend */}
-        <div style={{ display: 'flex', gap: 12, padding: '6px 16px 10px', fontSize: 9, color: '#3a3a50', fontFamily: 'var(--font-mono)', flexWrap: 'wrap', borderTop: '1px solid #0f0f18' }}>
-          {Object.entries(EDGE_TYPE_STYLES).map(([key, val]) => (
-            <span key={key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ width: 12, height: 2, background: val.color, borderRadius: 1, opacity: 0.7 }} />
-              <span style={{ color: '#505068' }}>{val.label}</span>
-            </span>
-          ))}
+          <span style={{ color: '#ec4899' }}>{graph.nodes.filter(n => n.type === 'dna').length} DNA</span>
+          <span style={{ marginLeft: 'auto', color: '#686880' }}>hover to explore · click nodes or connections</span>
         </div>
       </div>
     </section>
