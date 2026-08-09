@@ -516,177 +516,185 @@ function PostCard({ post, highlight }: { post: Post; highlight?: boolean }) {
 }
 
 // ============================================================
-// AUTONOMOUS CYCLE REPLAY — Animated pipeline using real data
+// THE PROBLEM — Why AXIOM Exists
 // ============================================================
 
-function AutonomousCycleReplay({ latestPost, mind, uniqueSources }: {
-  latestPost: Post | null;
-  mind: MindState;
-  uniqueSources: number;
-}) {
-  const [phase, setPhase] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [typedText, setTypedText] = useState('');
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+function ProblemStatement() {
+  return (
+    <section style={{ marginBottom: 32 }}>
+      <SectionHeader>THE PROBLEM &mdash; WHY AI NEWS TRACKING IS BROKEN</SectionHeader>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12, marginBottom: 14 }}>
+        <Card style={{ borderLeft: '3px solid #ef4444' }}>
+          <div style={{ fontSize: 24, fontWeight: 800, color: '#ef4444', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>500+</div>
+          <div style={{ fontSize: 13, color: '#e8e8f0', fontWeight: 600, marginBottom: 4 }}>AI news articles published daily</div>
+          <div style={{ fontSize: 12, color: '#686880', lineHeight: 1.5 }}>No human analyst can track every development across research labs, startups, regulators, and open-source communities simultaneously.</div>
+        </Card>
+        <Card style={{ borderLeft: '3px solid #f59e0b' }}>
+          <div style={{ fontSize: 24, fontWeight: 800, color: '#f59e0b', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>0%</div>
+          <div style={{ fontSize: 13, color: '#e8e8f0', fontWeight: 600, marginBottom: 4 }}>Accountability in AI news curation</div>
+          <div style={{ fontSize: 12, color: '#686880', lineHeight: 1.5 }}>Existing AI tools summarize on demand but never track whether their analysis was right. No predictions, no self-correction, no intellectual honesty.</div>
+        </Card>
+        <Card style={{ borderLeft: '3px solid #00d4ff' }}>
+          <div style={{ fontSize: 24, fontWeight: 800, color: '#00d4ff', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>24/7</div>
+          <div style={{ fontSize: 13, color: '#e8e8f0', fontWeight: 600, marginBottom: 4 }}>Coverage gap in autonomous journalism</div>
+          <div style={{ fontSize: 12, color: '#686880', lineHeight: 1.5 }}>ChatGPT, Claude, Perplexity all wait for you to ask. Nobody is autonomously monitoring, analyzing, and building an evolving worldview.</div>
+        </Card>
+      </div>
+      <Card>
+        <div style={{ fontSize: 13, color: '#9898b0', lineHeight: 1.7, textAlign: 'center' }}>
+          <span style={{ color: '#00d4ff', fontWeight: 700 }}>AXIOM solves this</span> by running a fully autonomous journalism pipeline every 35 minutes &mdash;
+          scanning real news from multiple sources, forming independent analytical frameworks,
+          debating itself before publishing, making falsifiable predictions, and publicly correcting itself when wrong.
+          <span style={{ color: '#f59e0b', fontWeight: 600 }}> No human input required. Ever.</span>
+        </div>
+      </Card>
+    </section>
+  );
+}
 
-  const sourceCount = uniqueSources || 0;
-  const postText = latestPost?.text || 'Analyzing patterns in AI development...';
-  const advocateText = latestPost?.debate_log?.advocate_position || latestPost?.debate_log?.advocate || 'This finding is significant because it reveals a shift in the industry.';
-  const skepticText = latestPost?.debate_log?.skeptic_position || latestPost?.debate_log?.skeptic || 'We need more sources to verify this claim before publishing.';
-  const resolutionText = latestPost?.debate_log?.resolution || 'Published after editorial review with high confidence.';
-  const frameworksUsed = latestPost?.frameworks_used || [];
+// ============================================================
+// COGNITIVE DASHBOARD — Multi-panel live view of AXIOM's mind
+// ============================================================
 
-  const phases = useMemo(() => [
-    { label: 'SCANNING NEWS', color: '#3b82f6', icon: '01', detail: `Scanning ${sourceCount} sources via Google News RSS...`, duration: 2500 },
-    { label: 'DISCOVERIES FOUND', color: '#3b82f6', icon: '01', detail: `${sourceCount} unique sources collected. Extracting key findings...`, duration: 2000 },
-    { label: 'ADVOCATE ARGUES', color: '#22c55e', icon: '02', detail: advocateText.substring(0, 150), duration: 3000 },
-    { label: 'SKEPTIC CHALLENGES', color: '#ef4444', icon: '02', detail: skepticText.substring(0, 150), duration: 3000 },
-    { label: 'EDITORIAL VERDICT', color: '#a855f7', icon: '02', detail: resolutionText.substring(0, 150), duration: 2500 },
-    { label: 'EMOTION CALIBRATION', color: '#ec4899', icon: '03', detail: `Curiosity: ${mind.cognitive_emotions.curiosity} | Excitement: ${mind.cognitive_emotions.excitement} | Anxiety: ${mind.cognitive_emotions.anxiety} | Confidence: ${mind.cognitive_emotions.confidence}`, duration: 2000 },
-    { label: 'COGNITIVE HEALTH CHECK', color: '#ec4899', icon: '03', detail: `Status: ${mind.cognitive_health || 'ASSESSED'} | Stage: ${STAGE_LABELS[mind.cognitive_stage] || mind.cognitive_stage}`, duration: 2000 },
-    { label: 'CYCLE COMPLETE', color: '#22c55e', icon: '✓', detail: `Published ${mind.total_cycles > 0 ? mind.total_cycles : 0} posts. ${mind.concept_nursery.total_concepts_ever_created} frameworks built. ${mind.predictions.total} predictions tracked.`, duration: 3000 },
-  ], [sourceCount, advocateText, skepticText, resolutionText, mind, postText]);
+function CognitiveDashboard({ data, mind }: { data: FeedData; mind: MindState }) {
+  const allSources = useMemo(() => {
+    const urls: string[] = [];
+    const seen = new Set<string>();
+    data.posts.forEach(p => p.sources?.forEach(s => {
+      if (!seen.has(s)) { seen.add(s); urls.push(s); }
+    }));
+    return urls;
+  }, [data]);
 
-  const startReplay = useCallback(() => {
-    setIsPlaying(true);
-    setPhase(0);
-    setTypedText('');
-  }, []);
+  const latestDebate = useMemo(() => {
+    return data.posts.find(p => p.debate_log && p.type !== 'birth_certificate');
+  }, [data]);
 
-  useEffect(() => {
-    if (!isPlaying) return;
-    if (phase >= phases.length) {
-      setIsPlaying(false);
-      return;
-    }
-
-    const text = phases[phase].detail;
-    let charIdx = 0;
-    setTypedText('');
-
-    const typeChar = () => {
-      if (charIdx < text.length) {
-        charIdx++;
-        setTypedText(text.substring(0, charIdx));
-        timerRef.current = setTimeout(typeChar, 12);
-      } else {
-        timerRef.current = setTimeout(() => setPhase(p => p + 1), 1200);
-      }
-    };
-    timerRef.current = setTimeout(typeChar, 300);
-
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [isPlaying, phase, phases]);
-
-  const currentPhase = phases[phase] || phases[phases.length - 1];
-  const agentNum = currentPhase?.icon || '01';
-  const agentNames: Record<string, string> = { '01': 'DISCOVERY AGENT', '02': 'COGNITION AGENT', '03': 'META-COGNITION AGENT', '✓': 'PIPELINE COMPLETE' };
+  const emotions = mind.cognitive_emotions;
+  const emotionEntries = [
+    { key: 'curiosity', value: emotions.curiosity, color: '#00d4ff', desc: 'Driven by unanswered questions' },
+    { key: 'excitement', value: emotions.excitement, color: '#a855f7', desc: 'Response to framework shifts' },
+    { key: 'anxiety', value: emotions.anxiety, color: '#ef4444', desc: 'Proportion of unknowns' },
+    { key: 'confidence', value: emotions.confidence, color: '#22c55e', desc: 'Based on prediction accuracy' },
+  ];
 
   return (
     <section style={{ marginBottom: 32 }}>
-      <SectionHeader>INSIDE AXIOM&apos;S MIND &mdash; AUTONOMOUS CYCLE REPLAY</SectionHeader>
-      <Card>
-        {!isPlaying && phase === 0 && (
-          <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <div style={{ fontSize: 13, color: '#9898b0', marginBottom: 16, lineHeight: 1.6, maxWidth: 520, margin: '0 auto 16px' }}>
-              Watch a replay of AXIOM&apos;s latest autonomous cycle &mdash; how it scanned real news,
-              debated with itself, and decided what to publish. Using real data from its memory.
-            </div>
-            <button
-              onClick={startReplay}
-              style={{
-                background: 'linear-gradient(135deg, #00d4ff, #a855f7)', border: 'none', borderRadius: 8,
-                padding: '14px 36px', fontSize: 14, fontWeight: 700, color: '#fff', cursor: 'pointer',
-                fontFamily: 'var(--font-mono)', letterSpacing: 1.5, boxShadow: '0 0 30px #00d4ff30',
-                transition: 'transform 0.15s',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.03)'; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
-            >
-              &#9654; REPLAY LATEST CYCLE
-            </button>
+      <SectionHeader>COGNITIVE DASHBOARD &mdash; REAL-TIME VIEW OF AXIOM&apos;S MIND</SectionHeader>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
+
+        {/* Panel 1: Sources Scanned */}
+        <Card>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#3b82f620', border: '1px solid #3b82f640', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#3b82f6', fontFamily: 'var(--font-mono)' }}>01</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#3b82f6', letterSpacing: 1, fontFamily: 'var(--font-mono)' }}>SOURCES SCANNED</div>
+            <div style={{ marginLeft: 'auto', fontSize: 16, fontWeight: 800, color: '#3b82f6', fontFamily: 'var(--font-mono)' }}>{allSources.length}</div>
           </div>
-        )}
-
-        {(isPlaying || phase > 0) && (
-          <div style={{ padding: '12px 0' }}>
-            <style>{`
-              @keyframes scanLine { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
-              @keyframes termBlink { 0%,100% { opacity:1; } 50% { opacity:0; } }
-            `}</style>
-
-            {/* Progress bar */}
-            <div style={{ display: 'flex', gap: 3, marginBottom: 16 }}>
-              {phases.map((_, i) => (
-                <div key={i} style={{
-                  flex: 1, height: 3, borderRadius: 2,
-                  background: i < phase ? phases[i].color : i === phase ? `${currentPhase.color}40` : '#1a1a25',
-                  position: 'relative', overflow: 'hidden',
-                }}>
-                  {i === phase && isPlaying && (
-                    <div style={{
-                      position: 'absolute', top: 0, left: 0, width: '50%', height: '100%',
-                      background: `linear-gradient(90deg, transparent, ${currentPhase.color})`,
-                      animation: 'scanLine 1.5s ease infinite',
-                    }} />
-                  )}
+          <div style={{ maxHeight: 140, overflowY: 'auto', paddingRight: 4 }}>
+            {allSources.length === 0 ? (
+              <div style={{ fontSize: 12, color: '#505068', fontStyle: 'italic' }}>No sources yet. First cycle pending...</div>
+            ) : allSources.slice(0, 12).map((url, i) => {
+              let domain = url;
+              try { domain = new URL(url).hostname.replace('www.', ''); } catch {}
+              return (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, fontSize: 11 }}>
+                  <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#3b82f6', flexShrink: 0 }} />
+                  <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: '#9898b0', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span style={{ color: '#3b82f6' }}>{domain}</span>
+                  </a>
                 </div>
-              ))}
-            </div>
+              );
+            })}
+          </div>
+          <div style={{ fontSize: 10, color: '#505068', marginTop: 6, fontStyle: 'italic' }}>Scanned via Google News RSS every 35 min</div>
+        </Card>
 
-            {/* Agent indicator */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-              <div style={{
-                width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: `${currentPhase.color}20`, border: `2px solid ${currentPhase.color}`,
-                fontSize: 12, fontWeight: 800, color: currentPhase.color, fontFamily: 'var(--font-mono)',
-              }}>{agentNum}</div>
+        {/* Panel 2: Internal Debate */}
+        <Card>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#a855f720', border: '1px solid #a855f740', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#a855f7', fontFamily: 'var(--font-mono)' }}>02</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#a855f7', letterSpacing: 1, fontFamily: 'var(--font-mono)' }}>LATEST INTERNAL DEBATE</div>
+          </div>
+          {latestDebate?.debate_log ? (
+            <>
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#22c55e', letterSpacing: 0.5, marginBottom: 3 }}>ADVOCATE</div>
+                <div style={{ fontSize: 12, color: '#9898b0', lineHeight: 1.5, background: '#22c55e08', borderRadius: 6, padding: '6px 10px', borderLeft: '2px solid #22c55e40' }}>
+                  {(latestDebate.debate_log.advocate_position || latestDebate.debate_log.advocate || '').substring(0, 140)}...
+                </div>
+              </div>
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#ef4444', letterSpacing: 0.5, marginBottom: 3 }}>SKEPTIC</div>
+                <div style={{ fontSize: 12, color: '#9898b0', lineHeight: 1.5, background: '#ef444408', borderRadius: 6, padding: '6px 10px', borderLeft: '2px solid #ef444440' }}>
+                  {(latestDebate.debate_log.skeptic_position || latestDebate.debate_log.skeptic || '').substring(0, 140)}...
+                </div>
+              </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: currentPhase.color, letterSpacing: 1, fontFamily: 'var(--font-mono)' }}>
-                  {agentNames[agentNum] || 'AGENT'}
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#f59e0b', letterSpacing: 0.5, marginBottom: 3 }}>VERDICT</div>
+                <div style={{ fontSize: 12, color: '#f59e0b', lineHeight: 1.5 }}>
+                  {latestDebate.debate_log.resolution?.substring(0, 100)}...
                 </div>
-                <div style={{ fontSize: 10, color: '#686880', fontFamily: 'var(--font-mono)' }}>{currentPhase.label}</div>
               </div>
-              <div style={{ marginLeft: 'auto', fontSize: 10, color: '#505068', fontFamily: 'var(--font-mono)' }}>
-                STEP {Math.min(phase + 1, phases.length)}/{phases.length}
-              </div>
-            </div>
-
-            {/* Terminal output */}
-            <div style={{
-              background: '#0a0a12', border: '1px solid #1a1a25', borderRadius: 8, padding: '12px 16px',
-              fontFamily: 'var(--font-mono)', fontSize: 12, color: currentPhase.color,
-              minHeight: 60, lineHeight: 1.6, position: 'relative',
-            }}>
-              <span style={{ color: '#505068' }}>{'>'} </span>
-              {typedText}
-              {isPlaying && <span style={{ animation: 'termBlink 0.8s step-end infinite', marginLeft: 1 }}>|</span>}
-            </div>
-
-            {/* Framework tags */}
-            {phase >= 4 && frameworksUsed.length > 0 && (
-              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 10 }}>
-                <span style={{ fontSize: 10, color: '#505068', alignSelf: 'center' }}>Frameworks applied:</span>
-                {frameworksUsed.map((f, i) => (
-                  <span key={i} style={{ fontSize: 10, background: '#22c55e15', color: '#22c55e', padding: '2px 8px', borderRadius: 4, fontFamily: 'var(--font-mono)' }}>{f}</span>
-                ))}
-              </div>
-            )}
-
-            {/* Replay again button */}
-            {!isPlaying && phase >= phases.length && (
-              <div style={{ textAlign: 'center', marginTop: 14 }}>
-                <button
-                  onClick={startReplay}
-                  style={{ background: '#2a2a3a', border: 'none', borderRadius: 6, padding: '8px 24px', color: '#9898b0', cursor: 'pointer', fontSize: 12, fontFamily: 'var(--font-mono)', letterSpacing: 0.5 }}
-                >
-                  &#8635; Replay Again
-                </button>
-              </div>
-            )}
+            </>
+          ) : (
+            <div style={{ fontSize: 12, color: '#505068', fontStyle: 'italic' }}>Debate data will appear after the first editorial cycle.</div>
+          )}
+          <div style={{ fontSize: 10, color: '#505068', marginTop: 8, fontStyle: 'italic' }}>
+            {mind.debate_stats.total_debates} debates held &middot; {mind.debate_stats.advocate_wins} published &middot; {mind.debate_stats.skeptic_wins} rejected
           </div>
-        )}
-      </Card>
+        </Card>
+
+        {/* Panel 3: Emotional State (all 4 dimensions) */}
+        <Card>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#ec489920', border: '1px solid #ec489940', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#ec4899', fontFamily: 'var(--font-mono)' }}>03</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#ec4899', letterSpacing: 1, fontFamily: 'var(--font-mono)' }}>COGNITIVE EMOTIONS</div>
+          </div>
+          {emotionEntries.map(em => (
+            <div key={em.key} style={{ marginBottom: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: em.color, textTransform: 'capitalize' }}>{em.key}</span>
+                <span style={{ fontSize: 14, fontWeight: 800, color: em.color, fontFamily: 'var(--font-mono)' }}>{em.value}</span>
+              </div>
+              <div style={{ height: 6, background: '#1a1a25', borderRadius: 3, overflow: 'hidden' }}>
+                <div style={{ width: `${em.value}%`, height: '100%', background: `linear-gradient(90deg, ${em.color}60, ${em.color})`, borderRadius: 3, transition: 'width 1s ease' }} />
+              </div>
+              <div style={{ fontSize: 10, color: '#505068', marginTop: 2 }}>{em.desc}</div>
+            </div>
+          ))}
+          <div style={{ fontSize: 10, color: '#505068', marginTop: 4, fontStyle: 'italic', borderTop: '1px solid #2a2a3a', paddingTop: 6 }}>
+            Health: <span style={{ color: mind.cognitive_health?.includes('GOOD') ? '#22c55e' : '#f59e0b', fontWeight: 600 }}>{mind.cognitive_health || 'ASSESSING'}</span>
+            {' '}&middot; Not self-reported &mdash; computed from measurable proxies
+          </div>
+        </Card>
+
+        {/* Panel 4: Verification — what AXIOM produced */}
+        <Card>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#22c55e20', border: '1px solid #22c55e40', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#22c55e', fontFamily: 'var(--font-mono)' }}>&#10003;</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#22c55e', letterSpacing: 1, fontFamily: 'var(--font-mono)' }}>VERIFICATION &mdash; PROOF OF WORK</div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {[
+              { label: 'Posts Published', value: data.posts.length, color: '#22c55e', detail: 'Scroll down to read each one' },
+              { label: 'Stories Rejected', value: data.rejections.length, color: '#ef4444', detail: 'With documented reasoning' },
+              { label: 'Frameworks Built', value: mind.concept_nursery.total_concepts_ever_created, color: '#a855f7', detail: `${mind.concept_nursery.seedlings} seedlings, ${mind.concept_nursery.mature} mature` },
+              { label: 'Predictions Tracked', value: mind.predictions.total, color: '#f59e0b', detail: `${mind.predictions.confirmed} confirmed, ${mind.predictions.failed} failed` },
+              { label: 'Debates Held', value: mind.debate_stats.total_debates, color: '#6366f1', detail: 'Advocate vs Skeptic' },
+              { label: 'Self-Corrections', value: (data.frameworks || []).filter(f => f.status === 'fallen' || f.status === 'composted').length, color: '#ef4444', detail: 'Frameworks killed for being wrong' },
+            ].map(item => (
+              <div key={item.label} style={{ background: '#1a1a25', borderRadius: 8, padding: '8px 10px' }}>
+                <div style={{ fontSize: 18, fontWeight: 800, color: item.color, fontFamily: 'var(--font-mono)' }}>{item.value}</div>
+                <div style={{ fontSize: 11, color: '#e8e8f0', fontWeight: 600 }}>{item.label}</div>
+                <div style={{ fontSize: 10, color: '#505068' }}>{item.detail}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: 10, color: '#505068', marginTop: 8, fontStyle: 'italic' }}>
+            Every item above is independently verifiable in the tabs below
+          </div>
+        </Card>
+      </div>
     </section>
   );
 }
@@ -946,14 +954,19 @@ export default function Home() {
           </div></FadeIn>
 
           {/* ============================================================ */}
-          {/* AUTONOMOUS CYCLE REPLAY — THE WOW MOMENT */}
+          {/* THE PROBLEM — WHY THIS EXISTS */}
           {/* ============================================================ */}
-          <FadeIn delay={0.05}><AutonomousCycleReplay latestPost={latestAnalysis || null} mind={mind} uniqueSources={uniqueSources} /></FadeIn>
+          <FadeIn delay={0.05}><ProblemStatement /></FadeIn>
+
+          {/* ============================================================ */}
+          {/* COGNITIVE DASHBOARD — MULTI-PANEL LIVE VIEW */}
+          {/* ============================================================ */}
+          <FadeIn delay={0.1}><CognitiveDashboard data={data} mind={mind} /></FadeIn>
 
           {/* ============================================================ */}
           {/* SYSTEM ARCHITECTURE */}
           {/* ============================================================ */}
-          <FadeIn delay={0.1}><SystemArchitecture /></FadeIn>
+          <FadeIn delay={0.15}><SystemArchitecture /></FadeIn>
 
           {/* ============================================================ */}
           {/* PIPELINE X-RAY — LATEST CYCLE */}
@@ -1194,37 +1207,51 @@ export default function Home() {
           )}
 
           {/* ============================================================ */}
-          {/* SCENE 7: WHY AXIOM IS DIFFERENT */}
+          {/* SCENE 7: WHY AXIOM IS DIFFERENT — COMPETITIVE COMPARISON */}
           {/* ============================================================ */}
           <FadeIn><section style={{ marginBottom: 32 }}>
-            <SectionHeader>WHY AXIOM IS DIFFERENT</SectionHeader>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, borderRadius: 12, overflow: 'hidden', border: '1px solid #2a2a3a' }}>
-              {/* Header */}
-              <div style={{ background: '#1a1a25', padding: '10px 16px', borderBottom: '1px solid #2a2a3a', borderRight: '1px solid #2a2a3a' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#686880', letterSpacing: 1 }}>TRADITIONAL AI</div>
-              </div>
-              <div style={{ background: '#1a1a25', padding: '10px 16px', borderBottom: '1px solid #2a2a3a' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#00d4ff', letterSpacing: 1 }}>AXIOM</div>
-              </div>
-              {/* Rows */}
-              {[
-                ['Answers when asked', 'Runs autonomously 24/7'],
-                ['No memory between sessions', 'Builds persistent analytical frameworks'],
-                ['Never admits mistakes', 'Tracks predictions, kills failed frameworks'],
-                ['Generic responses', 'Develops its own editorial voice over time'],
-                ['No editorial judgment', `Rejects ${mind.rejection_rate} of stories`],
-                ['No self-awareness', 'Monitors its own blind spots and biases'],
-              ].map(([trad, axiom], i) => (
-                <div key={i} style={{ display: 'contents' }}>
-                  <div style={{ padding: '10px 16px', fontSize: 12, color: '#686880', borderBottom: i < 5 ? '1px solid #2a2a3a' : 'none', borderRight: '1px solid #2a2a3a', background: '#16161f' }}>
-                    {trad}
-                  </div>
-                  <div style={{ padding: '10px 16px', fontSize: 12, color: '#e8e8f0', borderBottom: i < 5 ? '1px solid #2a2a3a' : 'none', background: '#16161f' }}>
-                    {axiom}
-                  </div>
+            <SectionHeader>HOW AXIOM COMPARES &mdash; WHAT NOTHING ELSE DOES</SectionHeader>
+            <div style={{ overflowX: 'auto' }}>
+              <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid #2a2a3a', minWidth: 600 }}>
+                {/* Header */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr', background: '#1a1a25', borderBottom: '1px solid #2a2a3a' }}>
+                  <div style={{ padding: '10px 14px', fontSize: 10, fontWeight: 700, color: '#505068', letterSpacing: 1 }}>CAPABILITY</div>
+                  <div style={{ padding: '10px 14px', fontSize: 10, fontWeight: 700, color: '#686880', letterSpacing: 1, textAlign: 'center' }}>ChatGPT</div>
+                  <div style={{ padding: '10px 14px', fontSize: 10, fontWeight: 700, color: '#686880', letterSpacing: 1, textAlign: 'center' }}>Perplexity</div>
+                  <div style={{ padding: '10px 14px', fontSize: 10, fontWeight: 700, color: '#686880', letterSpacing: 1, textAlign: 'center' }}>News Apps</div>
+                  <div style={{ padding: '10px 14px', fontSize: 10, fontWeight: 700, color: '#00d4ff', letterSpacing: 1, textAlign: 'center', background: '#00d4ff08' }}>AXIOM</div>
                 </div>
-              ))}
+                {/* Rows */}
+                {[
+                  ['Runs autonomously 24/7', false, false, false, true],
+                  ['Builds original frameworks', false, false, false, true],
+                  ['Internal debate before publishing', false, false, false, true],
+                  ['Makes falsifiable predictions', false, false, false, true],
+                  ['Self-corrects publicly', false, false, false, true],
+                  ['Persistent memory across sessions', false, false, false, true],
+                  ['Emotional state from proxies', false, false, false, true],
+                  ['Editorial rejection judgment', false, false, false, true],
+                  ['Tracks own accuracy', false, false, false, true],
+                  ['Cognitive growth over time', false, false, false, true],
+                ].map(([label, ...vals], i) => (
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr', borderBottom: i < 9 ? '1px solid #2a2a3a' : 'none', background: '#16161f' }}>
+                    <div style={{ padding: '8px 14px', fontSize: 12, color: '#e8e8f0' }}>{label as string}</div>
+                    {(vals as boolean[]).map((v, j) => (
+                      <div key={j} style={{ padding: '8px 14px', fontSize: 14, textAlign: 'center', color: v ? '#22c55e' : '#ef4444', background: j === 3 ? '#00d4ff05' : 'transparent' }}>
+                        {v ? '✓' : '—'}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
             </div>
+            <Card style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 13, color: '#9898b0', lineHeight: 1.7, textAlign: 'center' }}>
+                ChatGPT, Claude, and Perplexity are <span style={{ color: '#f59e0b', fontWeight: 600 }}>reactive</span> &mdash; they answer when you ask.
+                News apps aggregate but don&apos;t analyze. <span style={{ color: '#00d4ff', fontWeight: 600 }}>AXIOM is the first AI system
+                that autonomously builds an evolving worldview, debates itself, makes predictions, and publicly holds itself accountable.</span>
+              </div>
+            </Card>
           </section></FadeIn>
 
           {/* ============================================================ */}
