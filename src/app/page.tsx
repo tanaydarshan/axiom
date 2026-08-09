@@ -57,6 +57,8 @@ interface FrameworkData {
   deathDiagnosis?: string;
   testablePredictions?: string[];
   intellectualLineage?: string;
+  parentFramework?: string;
+  compostedInto?: string;
 }
 
 interface PredictionData {
@@ -500,6 +502,563 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 
 function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return <div style={{ background: '#16161f', border: '1px solid #2a2a3a', borderRadius: 12, padding: 16, ...style }}>{children}</div>;
+}
+
+// ============================================================
+// NEURAL NETWORK VISUALIZATION — Interactive force-directed graph
+// ============================================================
+
+interface GraphNode {
+  id: string;
+  label: string;
+  type: 'framework' | 'post' | 'prediction' | 'dna' | 'rejection';
+  color: string;
+  radius: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  detail: string;
+  status?: string;
+  confidence?: number;
+  depth: number;
+}
+
+interface GraphEdge {
+  source: string;
+  target: string;
+  color: string;
+  label: string;
+}
+
+function buildGraph(data: FeedData): { nodes: GraphNode[]; edges: GraphEdge[] } {
+  const nodes: GraphNode[] = [];
+  const edges: GraphEdge[] = [];
+  const nodeIds = new Set<string>();
+
+  const addNode = (n: GraphNode) => { if (!nodeIds.has(n.id)) { nodeIds.add(n.id); nodes.push(n); } };
+
+  // Frameworks — the central hubs
+  (data.frameworks || []).forEach((fw, i) => {
+    const isFallen = fw.status === 'fallen' || fw.status === 'composted';
+    addNode({
+      id: fw.id, label: fw.name, type: 'framework',
+      color: isFallen ? '#ef4444' : fw.status === 'mature' ? '#22c55e' : fw.status === 'sapling' || fw.status === 'growing' ? '#3b82f6' : '#a855f7',
+      radius: isFallen ? 14 : 10 + Math.min(fw.confidence / 8, 10),
+      x: 300 + Math.cos(i * 1.8) * 140, y: 250 + Math.sin(i * 1.8) * 120,
+      vx: 0, vy: 0,
+      detail: `${fw.description}\n\nStatus: ${fw.status} · Confidence: ${fw.confidence}%${fw.deathDiagnosis ? '\nDeath: ' + fw.deathDiagnosis : ''}`,
+      status: fw.status, confidence: fw.confidence, depth: 0,
+    });
+    // Framework → Framework edges
+    if (fw.parentFramework) {
+      edges.push({ source: fw.id, target: fw.parentFramework, color: '#a855f740', label: 'derived from' });
+    }
+  });
+
+  // Posts — connected to frameworks
+  data.posts.forEach((post, i) => {
+    const typeColor = TYPE_LABELS[post.type]?.color || '#6366f1';
+    addNode({
+      id: post.id, label: `${TYPE_LABELS[post.type]?.icon || '▸'} ${post.id}`, type: 'post',
+      color: typeColor,
+      radius: post.type === 'birth_certificate' ? 12 : post.type === 'framework_genesis' || post.type === 'framework_proposal' ? 10 : 7,
+      x: 100 + Math.cos(i * 0.9) * 220 + Math.random() * 40,
+      y: 200 + Math.sin(i * 0.9) * 180 + Math.random() * 40,
+      vx: 0, vy: 0,
+      detail: post.text.substring(0, 200) + (post.text.length > 200 ? '...' : ''),
+      depth: 1,
+    });
+    // Post → Framework edges
+    (post.frameworks_used || []).forEach(fwName => {
+      const fwNode = (data.frameworks || []).find(f => f.name === fwName || f.id === fwName);
+      if (fwNode) edges.push({ source: post.id, target: fwNode.id, color: '#22c55e30', label: 'uses framework' });
+    });
+    // Post → Post edges
+    (post.connected_posts || []).forEach(pid => {
+      edges.push({ source: post.id, target: pid, color: '#6366f130', label: 'connected' });
+    });
+    // Post → Prediction edges
+    (post.predictions_affected || []).forEach(pid => {
+      edges.push({ source: post.id, target: pid, color: '#f59e0b30', label: 'affects prediction' });
+    });
+  });
+
+  // Predictions — connected to frameworks
+  (data.predictions_list || []).forEach((pred, i) => {
+    addNode({
+      id: pred.id, label: pred.id, type: 'prediction',
+      color: pred.status === 'confirmed' ? '#22c55e' : pred.status === 'failed' ? '#ef4444' : '#f59e0b',
+      radius: 8,
+      x: 450 + Math.cos(i * 1.5) * 160, y: 200 + Math.sin(i * 1.5) * 130,
+      vx: 0, vy: 0,
+      detail: `${pred.prediction}\n\nConfidence: ${pred.confidence}% · Status: ${pred.status}${pred.resolution ? '\nResolution: ' + pred.resolution : ''}`,
+      status: pred.status, confidence: pred.confidence, depth: 1,
+    });
+    // Prediction → Framework
+    const fwNode = (data.frameworks || []).find(f => f.name === pred.derivedFromFramework || f.id === pred.derivedFromFramework);
+    if (fwNode) edges.push({ source: pred.id, target: fwNode.id, color: '#f59e0b30', label: 'derived from' });
+  });
+
+  // DNA Strands — crystallized principles
+  (data.dna_strands || []).forEach((dna, i) => {
+    addNode({
+      id: dna.id, label: dna.name, type: 'dna',
+      color: '#ec4899',
+      radius: 10,
+      x: 300 + Math.cos(i * 2.1 + 1) * 200, y: 250 + Math.sin(i * 2.1 + 1) * 180,
+      vx: 0, vy: 0,
+      detail: `${dna.principle}\n\nOrigin: ${dna.originTrace}\nCrystallized at cycle ${dna.crystallizedCycle}`,
+      depth: 0,
+    });
+  });
+
+  // Rejections — show editorial judgment
+  data.rejections.slice(0, 5).forEach((rej, i) => {
+    const rejId = rej.id || `REJ-${i}`;
+    addNode({
+      id: rejId, label: `✕ ${rejId}`, type: 'rejection',
+      color: '#686880',
+      radius: 5,
+      x: 500 + Math.cos(i * 1.3) * 100, y: 350 + Math.sin(i * 1.3) * 80,
+      vx: 0, vy: 0,
+      detail: `REJECTED: ${rej.topic}\n\n${rej.rejection_reasoning.verdict}`,
+      depth: 2,
+    });
+    (rej.rejection_reasoning.frameworks_consulted || []).forEach(fwName => {
+      const fwNode = (data.frameworks || []).find(f => f.name === fwName || f.id === fwName);
+      if (fwNode) edges.push({ source: rejId, target: fwNode.id, color: '#68688030', label: 'consulted' });
+    });
+  });
+
+  // Filter edges to only valid node pairs
+  const validEdges = edges.filter(e => nodeIds.has(e.source) && nodeIds.has(e.target) && e.source !== e.target);
+
+  return { nodes, edges: validEdges };
+}
+
+function NeuralGraph({ data }: { data: FeedData }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+  const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
+  const nodesRef = useRef<GraphNode[]>([]);
+  const edgesRef = useRef<GraphEdge[]>([]);
+  const mouseRef = useRef({ x: 0, y: 0, canvasX: 0, canvasY: 0 });
+  const animRef = useRef<number>(0);
+  const particlesRef = useRef<{ x: number; y: number; progress: number; edgeIdx: number; speed: number }[]>([]);
+  const timeRef = useRef(0);
+
+  const graph = useMemo(() => buildGraph(data), [data]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const W = container.offsetWidth;
+    const H = 500;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.scale(dpr, dpr);
+
+    // Initialize nodes with positions spread across canvas
+    const nodes = graph.nodes.map(n => ({
+      ...n,
+      x: Math.min(Math.max(n.x * (W / 600), 40), W - 40),
+      y: Math.min(Math.max(n.y * (H / 500), 40), H - 40),
+    }));
+    const edges = graph.edges;
+    nodesRef.current = nodes;
+    edgesRef.current = edges;
+
+    // Initialize particles flowing along edges
+    const particles: typeof particlesRef.current = [];
+    edges.forEach((_, idx) => {
+      const count = 1 + Math.floor(Math.random() * 2);
+      for (let i = 0; i < count; i++) {
+        particles.push({ x: 0, y: 0, progress: Math.random(), edgeIdx: idx, speed: 0.002 + Math.random() * 0.003 });
+      }
+    });
+    particlesRef.current = particles;
+
+    const nodeMap = new Map(nodes.map(n => [n.id, n]));
+
+    const draw = () => {
+      timeRef.current += 0.016;
+      const t = timeRef.current;
+      ctx.clearRect(0, 0, W, H);
+
+      // Force simulation step
+      const damping = 0.92;
+      const repulsion = 800;
+      const attraction = 0.008;
+      const gravity = 0.02;
+      const cx = W / 2, cy = H / 2;
+
+      for (let i = 0; i < nodes.length; i++) {
+        const a = nodes[i];
+        // Gravity toward center
+        a.vx += (cx - a.x) * gravity;
+        a.vy += (cy - a.y) * gravity;
+
+        // Repulsion from all other nodes
+        for (let j = i + 1; j < nodes.length; j++) {
+          const b = nodes[j];
+          let dx = a.x - b.x;
+          let dy = a.y - b.y;
+          const dist2 = dx * dx + dy * dy;
+          const minDist = a.radius + b.radius + 20;
+          if (dist2 < 1) { dx = 1; dy = 1; }
+          const dist = Math.sqrt(dist2);
+          if (dist < minDist * 4) {
+            const force = repulsion / dist2;
+            a.vx += dx / dist * force;
+            a.vy += dy / dist * force;
+            b.vx -= dx / dist * force;
+            b.vy -= dy / dist * force;
+          }
+        }
+      }
+
+      // Attraction along edges
+      for (const edge of edges) {
+        const a = nodeMap.get(edge.source);
+        const b = nodeMap.get(edge.target);
+        if (!a || !b) continue;
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > 0) {
+          const targetDist = 100 + a.radius + b.radius;
+          const force = (dist - targetDist) * attraction;
+          a.vx += dx / dist * force;
+          a.vy += dy / dist * force;
+          b.vx -= dx / dist * force;
+          b.vy -= dy / dist * force;
+        }
+      }
+
+      // Apply velocity and clamp
+      for (const n of nodes) {
+        n.vx *= damping;
+        n.vy *= damping;
+        n.x += n.vx;
+        n.y += n.vy;
+        n.x = Math.max(n.radius + 4, Math.min(W - n.radius - 4, n.x));
+        n.y = Math.max(n.radius + 4, Math.min(H - n.radius - 4, n.y));
+      }
+
+      // Mouse parallax offset
+      const px = (mouseRef.current.x - W / 2) * 0.01;
+      const py = (mouseRef.current.y - H / 2) * 0.01;
+
+      // Determine hovered node
+      const mx = mouseRef.current.canvasX;
+      const my = mouseRef.current.canvasY;
+      let hovered: GraphNode | null = null;
+      for (const n of nodes) {
+        const dx = (n.x + px * n.depth) - mx;
+        const dy = (n.y + py * n.depth) - my;
+        if (dx * dx + dy * dy < (n.radius + 6) * (n.radius + 6)) {
+          hovered = n;
+          break;
+        }
+      }
+
+      // Connected node IDs for highlighting
+      const connectedIds = new Set<string>();
+      if (hovered) {
+        connectedIds.add(hovered.id);
+        for (const e of edges) {
+          if (e.source === hovered.id) connectedIds.add(e.target);
+          if (e.target === hovered.id) connectedIds.add(e.source);
+        }
+      }
+
+      // Draw edges
+      for (const edge of edges) {
+        const a = nodeMap.get(edge.source);
+        const b = nodeMap.get(edge.target);
+        if (!a || !b) continue;
+        const ax = a.x + px * a.depth, ay = a.y + py * a.depth;
+        const bx = b.x + px * b.depth, by = b.y + py * b.depth;
+        const isHighlighted = hovered && (edge.source === hovered.id || edge.target === hovered.id);
+        const alpha = isHighlighted ? 0.6 : (hovered ? 0.06 : 0.15);
+        const width = isHighlighted ? 2 : 1;
+
+        ctx.beginPath();
+        ctx.moveTo(ax, ay);
+        // Curved edges for visual interest
+        const midX = (ax + bx) / 2 + (ay - by) * 0.1;
+        const midY = (ay + by) / 2 + (bx - ax) * 0.1;
+        ctx.quadraticCurveTo(midX, midY, bx, by);
+        ctx.strokeStyle = isHighlighted ? edge.color.replace(/[\da-f]{2}$/, '') || a.color : edge.color;
+        ctx.globalAlpha = alpha;
+        ctx.lineWidth = width;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+
+      // Draw particles flowing along edges
+      for (const p of particles) {
+        const edge = edges[p.edgeIdx];
+        if (!edge) continue;
+        const a = nodeMap.get(edge.source);
+        const b = nodeMap.get(edge.target);
+        if (!a || !b) continue;
+        p.progress += p.speed;
+        if (p.progress > 1) p.progress -= 1;
+        const prog = p.progress;
+        const ax = a.x + px * a.depth, ay = a.y + py * a.depth;
+        const bx = b.x + px * b.depth, by = b.y + py * b.depth;
+        const midX = (ax + bx) / 2 + (ay - by) * 0.1;
+        const midY = (ay + by) / 2 + (bx - ax) * 0.1;
+        // Quadratic bezier interpolation
+        const t1 = 1 - prog;
+        p.x = t1 * t1 * ax + 2 * t1 * prog * midX + prog * prog * bx;
+        p.y = t1 * t1 * ay + 2 * t1 * prog * midY + prog * prog * by;
+
+        const isEdgeHighlighted = hovered && (edge.source === hovered.id || edge.target === hovered.id);
+        const pAlpha = isEdgeHighlighted ? 0.9 : (hovered ? 0.05 : 0.3);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, isEdgeHighlighted ? 2.5 : 1.5, 0, Math.PI * 2);
+        ctx.fillStyle = a.color;
+        ctx.globalAlpha = pAlpha;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+
+      // Draw nodes
+      for (const n of nodes) {
+        const nx = n.x + px * n.depth;
+        const ny = n.y + py * n.depth;
+        const isConnected = connectedIds.has(n.id);
+        const dimmed = hovered && !isConnected;
+        const isHovered = hovered?.id === n.id;
+
+        // Glow
+        if (isHovered || (!hovered && n.type === 'framework')) {
+          const glowRadius = n.radius + (isHovered ? 16 : 8);
+          const glow = ctx.createRadialGradient(nx, ny, n.radius * 0.5, nx, ny, glowRadius);
+          glow.addColorStop(0, n.color + '40');
+          glow.addColorStop(1, n.color + '00');
+          ctx.beginPath();
+          ctx.arc(nx, ny, glowRadius, 0, Math.PI * 2);
+          ctx.fillStyle = glow;
+          ctx.fill();
+        }
+
+        // Node circle
+        const pulse = n.type === 'framework' ? 1 + Math.sin(t * 2 + nodes.indexOf(n)) * 0.08 : 1;
+        ctx.beginPath();
+        ctx.arc(nx, ny, n.radius * pulse, 0, Math.PI * 2);
+        ctx.fillStyle = dimmed ? '#1a1a25' : n.color + '30';
+        ctx.fill();
+        ctx.strokeStyle = dimmed ? '#2a2a3a' : n.color;
+        ctx.lineWidth = isHovered ? 2.5 : 1.5;
+        ctx.globalAlpha = dimmed ? 0.3 : 1;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+
+        // Confidence ring for frameworks
+        if (n.type === 'framework' && n.confidence !== undefined && !dimmed) {
+          const angle = (n.confidence / 100) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.arc(nx, ny, n.radius + 4, -Math.PI / 2, -Math.PI / 2 + angle);
+          ctx.strokeStyle = n.color;
+          ctx.lineWidth = 2;
+          ctx.globalAlpha = 0.5;
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+
+        // Label
+        if (isHovered || isConnected || (!hovered && n.type === 'framework')) {
+          const labelText = n.label.length > 24 ? n.label.substring(0, 22) + '…' : n.label;
+          ctx.font = `${isHovered ? '600 11px' : '500 9px'} 'Geist Mono', 'JetBrains Mono', monospace`;
+          ctx.textAlign = 'center';
+          ctx.fillStyle = dimmed ? '#505068' : '#e8e8f0';
+          ctx.globalAlpha = dimmed ? 0.4 : isHovered ? 1 : 0.8;
+          ctx.fillText(labelText, nx, ny + n.radius + 14);
+          ctx.globalAlpha = 1;
+        }
+
+        // Type icon in center
+        if (n.radius >= 8 && !dimmed) {
+          const icons: Record<string, string> = { framework: '◆', post: '▸', prediction: '⊕', dna: '⚙', rejection: '✕' };
+          ctx.font = `${Math.max(8, n.radius * 0.7)}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = n.color;
+          ctx.globalAlpha = 0.7;
+          ctx.fillText(icons[n.type] || '•', nx, ny);
+          ctx.globalAlpha = 1;
+          ctx.textBaseline = 'alphabetic';
+        }
+      }
+
+      // Legend
+      ctx.font = '500 9px "Geist Mono", monospace';
+      ctx.textAlign = 'left';
+      const legend = [
+        { label: 'Framework', color: '#22c55e' },
+        { label: 'Post', color: '#6366f1' },
+        { label: 'Prediction', color: '#f59e0b' },
+        { label: 'DNA', color: '#ec4899' },
+        { label: 'Rejection', color: '#686880' },
+      ];
+      legend.forEach((item, i) => {
+        const lx = 12, ly = H - 10 - (legend.length - 1 - i) * 16;
+        ctx.beginPath();
+        ctx.arc(lx + 4, ly - 3, 4, 0, Math.PI * 2);
+        ctx.fillStyle = item.color;
+        ctx.globalAlpha = 0.7;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#686880';
+        ctx.fillText(item.label, lx + 14, ly);
+      });
+
+      animRef.current = requestAnimationFrame(draw);
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseRef.current.x = e.clientX - rect.left;
+      mouseRef.current.y = e.clientY - rect.top;
+      mouseRef.current.canvasX = e.clientX - rect.left;
+      mouseRef.current.canvasY = e.clientY - rect.top;
+
+      // Check hover
+      const mx = mouseRef.current.canvasX;
+      const my = mouseRef.current.canvasY;
+      const pxOff = (mouseRef.current.x - W / 2) * 0.01;
+      const pyOff = (mouseRef.current.y - H / 2) * 0.01;
+      let found: GraphNode | null = null;
+      for (const n of nodes) {
+        const dx = (n.x + pxOff * n.depth) - mx;
+        const dy = (n.y + pyOff * n.depth) - my;
+        if (dx * dx + dy * dy < (n.radius + 6) * (n.radius + 6)) {
+          found = n;
+          break;
+        }
+      }
+      setHoveredNode(found);
+      canvas.style.cursor = found ? 'pointer' : 'default';
+    };
+
+    const handleClick = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const pxOff = (mx - W / 2) * 0.01;
+      const pyOff = (my - H / 2) * 0.01;
+      for (const n of nodes) {
+        const dx = (n.x + pxOff * n.depth) - mx;
+        const dy = (n.y + pyOff * n.depth) - my;
+        if (dx * dx + dy * dy < (n.radius + 6) * (n.radius + 6)) {
+          setSelectedNode(prev => prev?.id === n.id ? null : n);
+          return;
+        }
+      }
+      setSelectedNode(null);
+    };
+
+    draw();
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('click', handleClick);
+
+    return () => {
+      cancelAnimationFrame(animRef.current);
+      canvas.removeEventListener('mousemove', handleMouseMove);
+      canvas.removeEventListener('click', handleClick);
+    };
+  }, [graph]);
+
+  const TYPE_COLORS: Record<string, string> = { framework: '#22c55e', post: '#6366f1', prediction: '#f59e0b', dna: '#ec4899', rejection: '#686880' };
+
+  return (
+    <section style={{ marginBottom: 32 }}>
+      <SectionHeader>NEURAL MAP &mdash; LIVE VISUALIZATION OF AXIOM&apos;S THINKING NETWORK</SectionHeader>
+      <div ref={containerRef} style={{ background: '#0c0c14', border: '1px solid #2a2a3a', borderRadius: 12, overflow: 'hidden', position: 'relative' }}>
+        <canvas ref={canvasRef} style={{ display: 'block', width: '100%', height: 500 }} />
+
+        {/* Hover tooltip */}
+        {hoveredNode && !selectedNode && (
+          <div style={{
+            position: 'absolute', top: 12, right: 12, width: 240,
+            background: '#16161fee', border: `1px solid ${hoveredNode.color}40`,
+            borderRadius: 10, padding: 14, pointerEvents: 'none',
+          }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: hoveredNode.color, letterSpacing: 1, marginBottom: 4, fontFamily: 'var(--font-mono)' }}>
+              {hoveredNode.type.toUpperCase()}
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#e8e8f0', marginBottom: 6 }}>{hoveredNode.label}</div>
+            <div style={{ fontSize: 11, color: '#9898b0', lineHeight: 1.5, whiteSpace: 'pre-wrap', maxHeight: 120, overflow: 'hidden' }}>
+              {hoveredNode.detail}
+            </div>
+          </div>
+        )}
+
+        {/* Selected node detail panel */}
+        {selectedNode && (
+          <div style={{
+            position: 'absolute', top: 12, right: 12, width: 300,
+            background: '#16161ffa', border: `1px solid ${selectedNode.color}60`,
+            borderRadius: 12, padding: 18, maxHeight: 460, overflowY: 'auto',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: selectedNode.color, letterSpacing: 1, fontFamily: 'var(--font-mono)', background: selectedNode.color + '15', padding: '2px 8px', borderRadius: 4 }}>
+                {selectedNode.type.toUpperCase()}
+              </span>
+              <button onClick={() => setSelectedNode(null)} style={{ background: 'none', border: 'none', color: '#686880', cursor: 'pointer', fontSize: 14 }}>✕</button>
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#e8e8f0', marginBottom: 8, lineHeight: 1.3 }}>{selectedNode.label}</div>
+            {selectedNode.status && (
+              <div style={{ fontSize: 11, color: '#686880', marginBottom: 6 }}>
+                Status: <span style={{ color: selectedNode.color, fontWeight: 600 }}>{selectedNode.status.toUpperCase()}</span>
+                {selectedNode.confidence !== undefined && <> · Confidence: <span style={{ color: '#00d4ff' }}>{selectedNode.confidence}%</span></>}
+              </div>
+            )}
+            <div style={{ fontSize: 12, color: '#9898b0', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{selectedNode.detail}</div>
+            {/* Show connections */}
+            <div style={{ marginTop: 12, borderTop: '1px solid #2a2a3a', paddingTop: 10 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: '#505068', letterSpacing: 1, marginBottom: 6 }}>CONNECTIONS</div>
+              {edgesRef.current.filter(e => e.source === selectedNode.id || e.target === selectedNode.id).map((e, i) => {
+                const otherId = e.source === selectedNode.id ? e.target : e.source;
+                const otherNode = nodesRef.current.find(n => n.id === otherId);
+                return (
+                  <div key={i} style={{ fontSize: 11, color: '#686880', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: TYPE_COLORS[otherNode?.type || 'post'], flexShrink: 0 }} />
+                    <span style={{ color: '#9898b0' }}>{e.label}</span>
+                    <span style={{ color: TYPE_COLORS[otherNode?.type || 'post'], fontFamily: 'var(--font-mono)', fontSize: 10 }}>{otherNode?.label || otherId}</span>
+                  </div>
+                );
+              })}
+              {edgesRef.current.filter(e => e.source === selectedNode.id || e.target === selectedNode.id).length === 0 && (
+                <div style={{ fontSize: 11, color: '#505068', fontStyle: 'italic' }}>No direct connections</div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Stats bar */}
+        <div style={{ display: 'flex', gap: 16, padding: '10px 16px', borderTop: '1px solid #1a1a25', fontSize: 10, color: '#505068', fontFamily: 'var(--font-mono)' }}>
+          <span>{graph.nodes.length} nodes</span>
+          <span>{graph.edges.length} synapses</span>
+          <span style={{ color: '#22c55e' }}>{graph.nodes.filter(n => n.type === 'framework').length} frameworks</span>
+          <span style={{ color: '#f59e0b' }}>{graph.nodes.filter(n => n.type === 'prediction').length} predictions</span>
+          <span style={{ marginLeft: 'auto', color: '#686880' }}>hover to explore · click to inspect</span>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 // ============================================================
@@ -1069,6 +1628,11 @@ export default function Home() {
               </div>
             </Card>
           </section></FadeIn>
+
+          {/* ============================================================ */}
+          {/* NEURAL MAP — INTERACTIVE NETWORK VISUALIZATION */}
+          {/* ============================================================ */}
+          <FadeIn delay={0.09}><NeuralGraph data={data} /></FadeIn>
 
           {/* ============================================================ */}
           {/* COGNITIVE DASHBOARD — MULTI-PANEL LIVE VIEW */}
