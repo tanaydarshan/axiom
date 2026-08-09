@@ -16,15 +16,15 @@ export async function POST(request: NextRequest) {
     const body: CognitionInput = await request.json();
     const { discoveryResults, cognitiveStage } = body;
 
-    const systemPrompt = getCognitionPrompt(cognitiveStage as CognitiveStage, 'full');
+    const fullPrompt = getCognitionPrompt(cognitiveStage as CognitiveStage, 'full');
+    const systemPrompt = fullPrompt.substring(0, 4000);
     const compressedState = await compressMindState(AGENT_ID);
     const previousTopics = await getPreviousTopics(AGENT_ID);
 
-    // Truncate discovery input to fit within Groq's request size limits
     const discoverStr = typeof discoveryResults === 'string' ? discoveryResults : JSON.stringify(discoveryResults);
-    const truncatedDiscoveries = discoverStr.substring(0, 6000);
-    const stateStr = compressedState ? JSON.stringify(compressedState).substring(0, 2000) : '{}';
-    const topicsStr = previousTopics ? JSON.stringify(previousTopics).substring(0, 1000) : '[]';
+    const truncatedDiscoveries = discoverStr.substring(0, 3000);
+    const stateStr = compressedState ? JSON.stringify(compressedState).substring(0, 1000) : '{}';
+    const topicsStr = previousTopics ? JSON.stringify(previousTopics).substring(0, 500) : '[]';
 
     const userMessage = JSON.stringify({
       discoveries: truncatedDiscoveries,
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
 
     const response = await callLLM({
       model: 'llama-3.1-8b-instant',
-      maxTokens: 4096,
+      maxTokens: 2048,
       systemPrompt,
       userMessage,
     });
