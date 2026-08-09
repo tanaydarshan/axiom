@@ -647,6 +647,7 @@ export async function getFullFeedResponse(agentId: string): Promise<FeedResponse
     emotion_history: (emotions || defaultEmotions).history,
     dna_strands: dna || [],
     init_timestamp: meta.initTimestamp,
+    debate_logs: (debates || defaultDebates).logs?.slice(-3) || [],
   };
 }
 

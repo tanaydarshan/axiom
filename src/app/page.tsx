@@ -113,6 +113,15 @@ interface MindState {
   cognitive_health: string;
 }
 
+interface DebateLog {
+  cycle: number;
+  topic?: string;
+  advocate?: string;
+  skeptic?: string;
+  resolution?: string;
+  winner: string;
+}
+
 interface FeedData {
   posts: Post[];
   rejections: Rejection[];
@@ -122,6 +131,7 @@ interface FeedData {
   emotion_history: EmotionHistoryPoint[];
   dna_strands: DNAStrandData[];
   init_timestamp: string;
+  debate_logs?: DebateLog[];
 }
 
 // ============================================================
@@ -532,20 +542,20 @@ function ProblemStatement() {
         <Card style={{ borderLeft: '3px solid #f59e0b' }}>
           <div style={{ fontSize: 24, fontWeight: 800, color: '#f59e0b', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>0%</div>
           <div style={{ fontSize: 13, color: '#e8e8f0', fontWeight: 600, marginBottom: 4 }}>Accountability in AI news curation</div>
-          <div style={{ fontSize: 12, color: '#686880', lineHeight: 1.5 }}>Existing AI tools summarize on demand but never track whether their analysis was right. No predictions, no self-correction, no intellectual honesty.</div>
+          <div style={{ fontSize: 12, color: '#686880', lineHeight: 1.5 }}>Most AI tools summarize on demand but don&apos;t track whether their analysis was right. No predictions, no self-correction, no intellectual honesty.</div>
         </Card>
         <Card style={{ borderLeft: '3px solid #00d4ff' }}>
           <div style={{ fontSize: 24, fontWeight: 800, color: '#00d4ff', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>24/7</div>
           <div style={{ fontSize: 13, color: '#e8e8f0', fontWeight: 600, marginBottom: 4 }}>Coverage gap in autonomous journalism</div>
-          <div style={{ fontSize: 12, color: '#686880', lineHeight: 1.5 }}>ChatGPT, Claude, Perplexity all wait for you to ask. Nobody is autonomously monitoring, analyzing, and building an evolving worldview.</div>
+          <div style={{ fontSize: 12, color: '#686880', lineHeight: 1.5 }}>Most AI tools wait for you to ask. AXIOM autonomously monitors, analyzes, and builds an evolving worldview without human prompting.</div>
         </Card>
       </div>
       <Card>
         <div style={{ fontSize: 13, color: '#9898b0', lineHeight: 1.7, textAlign: 'center' }}>
-          <span style={{ color: '#00d4ff', fontWeight: 700 }}>AXIOM solves this</span> by running a fully autonomous journalism pipeline every 35 minutes &mdash;
+          <span style={{ color: '#00d4ff', fontWeight: 700 }}>AXIOM addresses this</span> by running a fully autonomous journalism pipeline every 35 minutes &mdash;
           scanning real news from multiple sources, forming independent analytical frameworks,
           debating itself before publishing, making falsifiable predictions, and publicly correcting itself when wrong.
-          <span style={{ color: '#f59e0b', fontWeight: 600 }}> No human input required. Ever.</span>
+          <span style={{ color: '#f59e0b', fontWeight: 600 }}> No human input required.</span>
         </div>
       </Card>
     </section>
@@ -567,7 +577,21 @@ function CognitiveDashboard({ data, mind }: { data: FeedData; mind: MindState })
   }, [data]);
 
   const latestDebate = useMemo(() => {
-    return data.posts.find(p => p.debate_log && p.type !== 'birth_certificate');
+    if (data.debate_logs && data.debate_logs.length > 0) {
+      return data.debate_logs[data.debate_logs.length - 1];
+    }
+    const post = data.posts.find(p => p.debate_log && p.type !== 'birth_certificate');
+    if (post?.debate_log) {
+      return {
+        cycle: 0,
+        topic: '',
+        advocate: post.debate_log.advocate_position || post.debate_log.advocate || '',
+        skeptic: post.debate_log.skeptic_position || post.debate_log.skeptic || '',
+        resolution: post.debate_log.resolution || '',
+        winner: '',
+      };
+    }
+    return null;
   }, [data]);
 
   const emotions = mind.cognitive_emotions;
@@ -625,24 +649,27 @@ function CognitiveDashboard({ data, mind }: { data: FeedData; mind: MindState })
             <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#a855f720', border: '1px solid #a855f740', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#a855f7', fontFamily: 'var(--font-mono)' }}>02</div>
             <div style={{ fontSize: 10, fontWeight: 700, color: '#a855f7', letterSpacing: 1, fontFamily: 'var(--font-mono)' }}>LATEST INTERNAL DEBATE</div>
           </div>
-          {latestDebate?.debate_log ? (
+          {latestDebate ? (
             <>
+              {latestDebate.topic && (
+                <div style={{ fontSize: 11, color: '#c0c0d8', marginBottom: 8, fontWeight: 600 }}>{latestDebate.topic}</div>
+              )}
               <div style={{ marginBottom: 8 }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: '#22c55e', letterSpacing: 0.5, marginBottom: 3 }}>ADVOCATE</div>
                 <div style={{ fontSize: 12, color: '#9898b0', lineHeight: 1.5, background: '#22c55e08', borderRadius: 6, padding: '6px 10px', borderLeft: '2px solid #22c55e40' }}>
-                  {(latestDebate.debate_log.advocate_position || latestDebate.debate_log.advocate || '').substring(0, 140)}...
+                  {(latestDebate.advocate || '').substring(0, 160)}{(latestDebate.advocate || '').length > 160 ? '...' : ''}
                 </div>
               </div>
               <div style={{ marginBottom: 8 }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: '#ef4444', letterSpacing: 0.5, marginBottom: 3 }}>SKEPTIC</div>
                 <div style={{ fontSize: 12, color: '#9898b0', lineHeight: 1.5, background: '#ef444408', borderRadius: 6, padding: '6px 10px', borderLeft: '2px solid #ef444440' }}>
-                  {(latestDebate.debate_log.skeptic_position || latestDebate.debate_log.skeptic || '').substring(0, 140)}...
+                  {(latestDebate.skeptic || '').substring(0, 160)}{(latestDebate.skeptic || '').length > 160 ? '...' : ''}
                 </div>
               </div>
               <div>
                 <div style={{ fontSize: 10, fontWeight: 700, color: '#f59e0b', letterSpacing: 0.5, marginBottom: 3 }}>VERDICT</div>
                 <div style={{ fontSize: 12, color: '#f59e0b', lineHeight: 1.5 }}>
-                  {latestDebate.debate_log.resolution?.substring(0, 100)}...
+                  {(latestDebate.resolution || '').substring(0, 120)}{(latestDebate.resolution || '').length > 120 ? '...' : ''}
                 </div>
               </div>
             </>
@@ -1203,7 +1230,7 @@ export default function Home() {
                     </div>
                     <div style={{ fontSize: 13, color: '#e8e8f0', lineHeight: 1.6, marginBottom: 4 }}>{pred.prediction}</div>
                     <div style={{ fontSize: 11, color: '#686880' }}>
-                      From framework: <span style={{ color: '#22c55e' }}>{pred.derivedFromFramework === 'unknown' ? 'Self-derived analysis' : pred.derivedFromFramework}</span>
+                      From framework: <span style={{ color: '#22c55e' }}>{pred.derivedFromFramework === 'unknown' ? 'Independent analysis' : pred.derivedFromFramework}</span>
                     </div>
                     {pred.resolution && (
                       <div style={{ fontSize: 11, color: pred.status === 'confirmed' ? '#22c55e' : '#ef4444', marginTop: 4, fontStyle: 'italic' }}>
@@ -1217,51 +1244,26 @@ export default function Home() {
           )}
 
           {/* ============================================================ */}
-          {/* SCENE 7: WHY AXIOM IS DIFFERENT — COMPETITIVE COMPARISON */}
+          {/* SCENE 7: WHAT MAKES AXIOM DIFFERENT */}
           {/* ============================================================ */}
           <FadeIn><section style={{ marginBottom: 32 }}>
-            <SectionHeader>HOW AXIOM COMPARES &mdash; WHAT NOTHING ELSE DOES</SectionHeader>
-            <div style={{ overflowX: 'auto' }}>
-              <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid #2a2a3a', minWidth: 600 }}>
-                {/* Header */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr', background: '#1a1a25', borderBottom: '1px solid #2a2a3a' }}>
-                  <div style={{ padding: '10px 14px', fontSize: 10, fontWeight: 700, color: '#505068', letterSpacing: 1 }}>CAPABILITY</div>
-                  <div style={{ padding: '10px 14px', fontSize: 10, fontWeight: 700, color: '#686880', letterSpacing: 1, textAlign: 'center' }}>ChatGPT</div>
-                  <div style={{ padding: '10px 14px', fontSize: 10, fontWeight: 700, color: '#686880', letterSpacing: 1, textAlign: 'center' }}>Perplexity</div>
-                  <div style={{ padding: '10px 14px', fontSize: 10, fontWeight: 700, color: '#686880', letterSpacing: 1, textAlign: 'center' }}>News Apps</div>
-                  <div style={{ padding: '10px 14px', fontSize: 10, fontWeight: 700, color: '#00d4ff', letterSpacing: 1, textAlign: 'center', background: '#00d4ff08' }}>AXIOM</div>
-                </div>
-                {/* Rows */}
-                {[
-                  ['Runs autonomously 24/7', false, false, false, true],
-                  ['Builds original frameworks', false, false, false, true],
-                  ['Internal debate before publishing', false, false, false, true],
-                  ['Makes falsifiable predictions', false, false, false, true],
-                  ['Self-corrects publicly', false, false, false, true],
-                  ['Persistent memory across sessions', false, false, false, true],
-                  ['Emotional state from proxies', false, false, false, true],
-                  ['Editorial rejection judgment', false, false, false, true],
-                  ['Tracks own accuracy', false, false, false, true],
-                  ['Cognitive growth over time', false, false, false, true],
-                ].map(([label, ...vals], i) => (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr', borderBottom: i < 9 ? '1px solid #2a2a3a' : 'none', background: '#16161f' }}>
-                    <div style={{ padding: '8px 14px', fontSize: 12, color: '#e8e8f0' }}>{label as string}</div>
-                    {(vals as boolean[]).map((v, j) => (
-                      <div key={j} style={{ padding: '8px 14px', fontSize: 14, textAlign: 'center', color: v ? '#22c55e' : '#ef4444', background: j === 3 ? '#00d4ff05' : 'transparent' }}>
-                        {v ? '✓' : '—'}
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
+            <SectionHeader>WHAT MAKES AXIOM DIFFERENT</SectionHeader>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+              {[
+                { icon: '&#9881;', title: 'Fully Autonomous', desc: 'Runs every 35 minutes without any human input. Discovers, analyzes, decides, and publishes on its own.', color: '#00d4ff' },
+                { icon: '&#9878;', title: 'Self-Correcting', desc: `Built ${mind.concept_nursery.total_concepts_ever_created} frameworks and tracks each one. When evidence contradicts a framework, it kills it publicly.`, color: '#ef4444' },
+                { icon: '&#9873;', title: 'Accountable Predictions', desc: `Makes falsifiable predictions with deadlines (${mind.predictions.total} so far). Every prediction is tracked and will be resolved.`, color: '#f59e0b' },
+                { icon: '&#9733;', title: 'Internal Debate', desc: `An advocate and skeptic argue before every publish decision. ${mind.debate_stats.total_debates} debates held, ${mind.debate_stats.skeptic_wins} stories killed by the skeptic.`, color: '#a855f7' },
+                { icon: '&#9670;', title: 'Evolving Worldview', desc: `Started with zero knowledge. Now in ${STAGE_LABELS[mind.cognitive_stage] || mind.cognitive_stage} stage after ${formatDuration(mind.cognitive_age_hours)} of autonomous operation.`, color: '#22c55e' },
+                { icon: '&#9881;', title: 'Proxy-Based Emotions', desc: 'Cognitive emotions are computed from measurable signals (unanswered questions, framework shifts), not self-reported.', color: '#ec4899' },
+              ].map((item, i) => (
+                <Card key={i} style={{ borderTop: `2px solid ${item.color}` }}>
+                  <div style={{ fontSize: 20, marginBottom: 6 }} dangerouslySetInnerHTML={{ __html: item.icon }} />
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#e8e8f0', marginBottom: 4 }}>{item.title}</div>
+                  <div style={{ fontSize: 12, color: '#9898b0', lineHeight: 1.6 }}>{item.desc}</div>
+                </Card>
+              ))}
             </div>
-            <Card style={{ marginTop: 12 }}>
-              <div style={{ fontSize: 13, color: '#9898b0', lineHeight: 1.7, textAlign: 'center' }}>
-                ChatGPT, Claude, and Perplexity are <span style={{ color: '#f59e0b', fontWeight: 600 }}>reactive</span> &mdash; they answer when you ask.
-                News apps aggregate but don&apos;t analyze. <span style={{ color: '#00d4ff', fontWeight: 600 }}>AXIOM is the first AI system
-                that autonomously builds an evolving worldview, debates itself, makes predictions, and publicly holds itself accountable.</span>
-              </div>
-            </Card>
           </section></FadeIn>
 
           {/* ============================================================ */}

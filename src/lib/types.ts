@@ -118,9 +118,13 @@ export interface DebateStats {
   compromises: number;
   logs: {
     cycle: number;
-    postId: string;
+    postId?: string;
+    topic?: string;
+    advocate?: string;
+    skeptic?: string;
+    resolution?: string;
     winner: DebateWinner;
-    qualityScore: string;
+    qualityScore?: string;
   }[];
 }
 
@@ -207,6 +211,7 @@ export interface FeedResponse {
   emotion_history: (CognitiveEmotions & { cycle: number })[];
   dna_strands: DNAStrand[];
   init_timestamp: string;
+  debate_logs?: DebateStats['logs'];
 }
 
 export interface Persona {
