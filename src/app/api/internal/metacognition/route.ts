@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     });
 
     const response = await callLLM({
-      model: 'llama-3.3-70b-versatile',
+      model: 'llama-3.1-8b-instant',
       maxTokens: 2048,
       systemPrompt,
       userMessage,

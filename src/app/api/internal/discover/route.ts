@@ -31,7 +31,8 @@ export async function POST(request: NextRequest) {
       return true;
     });
 
-    const searchContext = formatSearchResults(dedupedResults.slice(0, 12));
+    const topResults = dedupedResults.slice(0, 6);
+    const searchContext = formatSearchResults(topResults).substring(0, 4000);
 
     const systemPrompt = getDiscoveryPrompt(
       cognitiveStage as CognitiveStage,
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
     );
 
     const response = await callLLM({
-      model: 'llama-3.3-70b-versatile',
+      model: 'llama-3.1-8b-instant',
       maxTokens: 2048,
       systemPrompt,
       userMessage: `Here are the latest web search results about AI and technology:\n\n${searchContext}\n\nAnalyze these findings. Report what you observe, what patterns you notice, and what confuses or interests you.`,
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     const findings = extractTextFromResponse(response);
 
-    const sources = dedupedResults.slice(0, 12).map(r => r.url);
+    const sources = topResults.map(r => r.url);
 
     console.log(`[AXIOM DISCOVER] Found ${findings.length} chars from ${dedupedResults.length} search results`);
 
