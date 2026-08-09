@@ -463,19 +463,43 @@ function LivePipelineMonitor({ onCycleComplete }: { onCycleComplete: () => void 
     timerRef.current = setInterval(() => setElapsed(e => e + 100), 100);
 
     try {
-      // Simulate step progression — pipeline takes 30-90s depending on rate limits
-      const t1 = setTimeout(() => setStep(s => s === 'discovering' ? 'cognizing' : s), 12000);
-      const t2 = setTimeout(() => setStep(s => s === 'cognizing' ? 'reflecting' : s), 35000);
-
-      const res = await fetch('/api/agent/trigger', { method: 'POST' });
-      clearTimeout(t1);
-      clearTimeout(t2);
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || `HTTP ${res.status}`);
+      // Step 1: Discovery — its own 60s Vercel function
+      const discoverRes = await fetch('/api/agent/trigger?step=discover', { method: 'POST' });
+      if (!discoverRes.ok) {
+        const err = await discoverRes.json();
+        throw new Error(err.error || `Discovery failed: HTTP ${discoverRes.status}`);
       }
-      const data: TriggerResult = await res.json();
-      setResult(data);
+      const discoverData = await discoverRes.json();
+      setResult(prev => ({ ...prev, ...discoverData } as TriggerResult));
+
+      // Step 2: Cognition — its own 60s Vercel function
+      setStep('cognizing');
+      const cognizeRes = await fetch('/api/agent/trigger?step=cognize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ discoveryResult: discoverData.discovery }),
+      });
+      if (!cognizeRes.ok) {
+        const err = await cognizeRes.json();
+        throw new Error(err.error || `Cognition failed: HTTP ${cognizeRes.status}`);
+      }
+      const cognizeData = await cognizeRes.json();
+      setResult(prev => ({ ...prev, cognition: cognizeData.cognition } as TriggerResult));
+
+      // Step 3: Meta-cognition — its own 60s Vercel function
+      setStep('reflecting');
+      const reflectRes = await fetch('/api/agent/trigger?step=reflect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cognitionResult: cognizeData.cognitionRaw }),
+      });
+      if (!reflectRes.ok) {
+        const err = await reflectRes.json();
+        throw new Error(err.error || `Metacognition failed: HTTP ${reflectRes.status}`);
+      }
+      const reflectData = await reflectRes.json();
+      setResult(prev => ({ ...prev, metacognition: reflectData.metacognition } as TriggerResult));
+
       setStep('complete');
       if (timerRef.current) clearInterval(timerRef.current);
       onCycleComplete();
