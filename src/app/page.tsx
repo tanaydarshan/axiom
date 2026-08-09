@@ -590,23 +590,33 @@ function CognitiveDashboard({ data, mind }: { data: FeedData; mind: MindState })
             <div style={{ fontSize: 10, fontWeight: 700, color: '#3b82f6', letterSpacing: 1, fontFamily: 'var(--font-mono)' }}>SOURCES SCANNED</div>
             <div style={{ marginLeft: 'auto', fontSize: 16, fontWeight: 800, color: '#3b82f6', fontFamily: 'var(--font-mono)' }}>{allSources.length}</div>
           </div>
-          <div style={{ maxHeight: 140, overflowY: 'auto', paddingRight: 4 }}>
-            {allSources.length === 0 ? (
-              <div style={{ fontSize: 12, color: '#505068', fontStyle: 'italic' }}>No sources yet. First cycle pending...</div>
-            ) : allSources.slice(0, 12).map((url, i) => {
-              let domain = url;
-              try { domain = new URL(url).hostname.replace('www.', ''); } catch {}
-              return (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, fontSize: 11 }}>
-                  <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#3b82f6', flexShrink: 0 }} />
-                  <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: '#9898b0', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <span style={{ color: '#3b82f6' }}>{domain}</span>
-                  </a>
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+              {[
+                { name: 'Google News', count: allSources.filter(u => u.includes('news.google')).length, color: '#3b82f6' },
+                { name: 'Direct Sources', count: allSources.filter(u => !u.includes('news.google')).length, color: '#22c55e' },
+              ].filter(s => s.count > 0).map(s => (
+                <div key={s.name} style={{ background: '#1a1a25', borderRadius: 6, padding: '6px 10px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: s.color, fontFamily: 'var(--font-mono)' }}>{s.count}</div>
+                  <div style={{ fontSize: 10, color: '#686880' }}>{s.name}</div>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
-          <div style={{ fontSize: 10, color: '#505068', marginTop: 6, fontStyle: 'italic' }}>Scanned via Google News RSS every 35 min</div>
+          {allSources.length === 0 ? (
+            <div style={{ fontSize: 12, color: '#505068', fontStyle: 'italic' }}>No sources yet. First cycle pending...</div>
+          ) : (
+            <div style={{ fontSize: 11, color: '#9898b0', lineHeight: 1.6 }}>
+              Aggregates from <span style={{ color: '#3b82f6', fontWeight: 600 }}>multiple news outlets</span> including
+              Reuters, AP, The Verge, TechCrunch, Ars Technica, MIT Tech Review, and more via Google News RSS.
+              Each article is deduplicated before analysis.
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 8 }}>
+            {['Reuters', 'AP News', 'The Verge', 'TechCrunch', 'Ars Technica', 'MIT Tech Review', 'Al Jazeera'].map(name => (
+              <span key={name} style={{ fontSize: 9, background: '#3b82f610', color: '#3b82f6', padding: '2px 6px', borderRadius: 3, fontFamily: 'var(--font-mono)' }}>{name}</span>
+            ))}
+          </div>
         </Card>
 
         {/* Panel 2: Internal Debate */}
