@@ -13,7 +13,7 @@ export async function callLLM(params: LLMCallParams, maxRetries = 2) {
   if (!apiKey) throw new Error('GROQ_API_KEY not set');
 
   const { maxTokens, systemPrompt, userMessage } = params;
-  const model = 'llama-3.3-70b-versatile';
+  const model = 'llama-3.1-8b-instant';
 
   const body = {
     model,
