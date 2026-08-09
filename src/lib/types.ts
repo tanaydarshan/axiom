@@ -12,8 +12,8 @@ export type PostType =
   | 'worldview_snapshot'
   | 'testament';
 
-export type FrameworkStatus = 'seedling' | 'sapling' | 'mature' | 'fallen' | 'composted';
-export type PredictionStatus = 'pending' | 'confirmed' | 'failed';
+export type FrameworkStatus = 'seedling' | 'growing' | 'sapling' | 'mature' | 'fallen' | 'composted';
+export type PredictionStatus = 'pending' | 'tracking' | 'confirmed' | 'failed';
 export type DebateWinner = 'advocate' | 'skeptic' | 'compromise';
 
 export interface CognitiveEmotions {

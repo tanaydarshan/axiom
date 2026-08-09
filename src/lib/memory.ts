@@ -368,10 +368,11 @@ function computeNurseryCounts(nursery: Framework[]): ConceptNursery {
   };
   for (const f of nursery) {
     if (f.status === 'seedling') counts.seedlings++;
-    else if (f.status === 'sapling') counts.saplings++;
+    else if (f.status === 'sapling' || f.status === 'growing') counts.saplings++;
     else if (f.status === 'mature') counts.mature++;
     else if (f.status === 'fallen') counts.fallen++;
     else if (f.status === 'composted') counts.composted++;
+    else counts.seedlings++;
   }
   return counts;
 }

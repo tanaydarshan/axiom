@@ -167,6 +167,7 @@ const TYPE_LABELS: Record<string, { label: string; color: string; icon: string }
 
 const STATUS_COLORS: Record<string, string> = {
   seedling: '#a855f7',
+  growing: '#3b82f6',
   sapling: '#3b82f6',
   mature: '#22c55e',
   fallen: '#ef4444',
@@ -715,7 +716,7 @@ function CognitiveDashboard({ data, mind }: { data: FeedData; mind: MindState })
             {[
               { label: 'Posts Published', value: data.posts.length, color: '#22c55e', detail: 'Scroll down to read each one' },
               { label: 'Stories Rejected', value: data.rejections.length, color: '#ef4444', detail: 'With documented reasoning' },
-              { label: 'Frameworks Built', value: mind.concept_nursery.total_concepts_ever_created, color: '#a855f7', detail: `${mind.concept_nursery.seedlings} seedlings, ${mind.concept_nursery.mature} mature` },
+              { label: 'Frameworks Built', value: mind.concept_nursery.total_concepts_ever_created, color: '#a855f7', detail: `${mind.concept_nursery.seedlings + mind.concept_nursery.saplings} growing, ${mind.concept_nursery.mature} mature` },
               { label: 'Predictions Tracked', value: mind.predictions.total, color: '#f59e0b', detail: `${mind.predictions.confirmed} confirmed, ${mind.predictions.failed} failed` },
               { label: 'Debates Held', value: mind.debate_stats.total_debates, color: '#6366f1', detail: 'Advocate vs Skeptic' },
               { label: 'Self-Corrections', value: (data.frameworks || []).filter(f => f.status === 'fallen' || f.status === 'composted').length, color: '#ef4444', detail: 'Frameworks killed for being wrong' },
